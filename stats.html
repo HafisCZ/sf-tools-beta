@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>SFTools - Statistics</title>
+
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="icon" type="image/png" href="res/favicon.png"/>
+
+        <link rel="stylesheet" href="vendor/css/semantic.min.css"/>
+
+        <link rel="stylesheet" href="css/style.css"/>
+        <link rel="stylesheet" href="css/style_rv2.css"/>
+
+        <link rel="stylesheet" href="css/plugins.css"/>
+
+        <script src="vendor/js/jquery.3.4.1.min.js"></script>
+        <script src="vendor/js/html2canvas.min.js"></script>
+        <script src="vendor/js/semantic.min.js"></script>
+
+        <script src="https://js.sentry-cdn.com/c545f98538e446fd9b2ea2d2a4103273.min.js" crossorigin="anonymous">
+            Sentry.onLoad(function() {
+                Sentry.init({
+                  dsn: 'https://c545f98538e446fd9b2ea2d2a4103273@o496093.ingest.sentry.io/5569896',
+                  maxBreadcrumbs: 50,
+                  debug: true,
+                });
+            });
+        </script>
+
+        <script src="js/plugins.js"></script>
+        <script src="js/enum.js"></script>
+        <script src="js/util.js"></script>
+        <script src="js/changelog.js"></script>
+
+        <script src="js/core/playa.js"></script>
+        <script src="js/core/core.js"></script>
+        <script src="js/sim/players.js"></script>
+        <script src="js/core/ast.js"></script>
+
+        <script src="js/stats/templates.js"></script>
+        <script src="js/stats/settings.js"></script>
+        <script src="js/stats/table.js"></script>
+
+        <script src="endpoint/endpoint.js"></script>
+
+        <script src="js/stats/event.js"></script>
+
+        <script src="js/core/idb.js"></script>
+
+        <link href="https://fonts.googleapis.com/css?family=Roboto:300&display=swap" rel="stylesheet">
+    </head>
+    <body>
+        <div class="ui fixed borderless huge menu css-menu">
+            <div class="header item"><a class="css-a-blank" href="index.html">SFTools</a> <span class="css-temporary css-hidden">Temporary</span></div>
+            <a class="item" id="show-players"><i class="small user icon"></i>Me</a>
+            <a class="item" id="show-groups"><i class="small archive icon"></i>Guilds</a>
+            <a class="item" id="show-browse"><i class="small database icon"></i>Players</a>
+            <a class="item" id="show-files"><i class="small upload icon"></i>Files</a>
+            <a class="item" id="show-settings"><i class="small cog icon"></i>Settings</a>
+            <div class="right menu" id="show-right-menu">
+                <a class="item" href="stats.html?temp" target="_blank"><i class="small user secret icon"></i><span class="css-small">Temporary session<span></a>
+                <a class="item" id="show-changelog"><i class="small sticky note icon"></i><span class="css-small">Changelog<span></a>
+                <a class="item" href="index.html"><i class="small reply icon"></i><span class="css-small">Go back</span></a>
+            </div>
+        </div>
+
+        <!-- LoaderView -->
+        <div id="modal-loader" class="ui main container">
+            <div class="ui active dimmer" data-op="text">
+                <img src="res/favicon.png" class="sftools-loader" width="100">
+            </div>
+        </div>
+
+        <!-- SetupView -->
+        <div id="modal-setup" class="ui main container css-hidden">
+            <div class="ui active dimmer" style="color: white;">
+                <h2 class="ui header white">Before you start ...</h2>
+                <p>
+                    <i class="book large icon"></i> Take a look at the complete <a href="https://github.com/HafisCZ/sf-tools/wiki">tool wiki page</a> or just check <a href="https://github.com/HafisCZ/sf-tools/wiki/1.-How-to-create-a-HAR-file">this page</a>
+                </p>
+                <p><i class="firefox large icon"></i> Firefox is highly recommended when creating HAR files</p>
+                <h2 class="ui header white" style="margin-top: 2em;">Usage terms</h2>
+                <div style="text-align: left; width: 30%;">
+                    <ul>
+                        <li>
+                            It is advised to never share HAR files, as they <b>might</b> contain private data.
+                            If needed, you can import & export the file to create safe to share version.
+                        </li>
+                        <li style="margin-top: 1em;">
+                            This site is distributed <b>AS IS</b>, without any warranties. It is recommended to keep a complete archive file or the original files used in case something happens.
+                        </li>
+                        <li style="margin-top: 1em;">
+                            You are free to use, share and download this site, but you're not allowed to redistribute it or any of its parts.
+                        </li>
+                        <li style="margin-top: 1em;">
+                            You agree to limit the data collection to reasonable amounts, such as capturing single guild or at most 100 players at once.
+                        </li>
+                        <li style="margin-top: 1em;">
+                            By using this tool you agree to and follow the Shakes & Fidget <a href="https://s1.sfgame.de/legal.php?l=en&t=terms">Terms and Conditions</a>.
+                        </li>
+                        <li style="margin-top: 1em;">
+                            All data shared via the integrated share function are not protected in any other way other than the share key. The key is valid only for 24 hours after which the data will be automatically deleted.
+                        </li>
+                        <li style="margin-top: 1em;">
+                            Automating the collection process in any way is strictly forbidden!
+                        </li>
+                        <li style="margin-top: 1em;">
+                            The owner of this site is in no way responsible for any losses caused by the use of this site or any of its functions.
+                        </li>
+                    </ul>
+                </div>
+                <button class="ui green button" style="width: 20%; margin-top: 2em;" data-op="accept">I understand & accept these terms</button>
+            </div>
+        </div>
+
+        <div id="modal-confirm" class="ui basic modal">
+            <div class="ui grid">
+                <div class="five wide column"></div>
+                <div class="six wide column">
+                    <h2 class="ui centered header white" data-op="title"></h2>
+                    <div style="text-align: center; margin-bottom: 4em;" data-op="content"></div>
+                    <div class="ui two buttons">
+                        <button class="ui red button" data-op="no">Cancel</button>
+                        <button class="ui green button" data-op="yes">OK</button>
+                    </div>
+                </div>
+                <div class="five wide column"></div>
+            </div>
+        </div>
+
+        <!-- ChangeLogView -->
+        <div id="modal-changelog" class="ui main container css-hidden">
+            <div class="ui active dimmer" style="color: white;">
+                <h2 class="ui header white" data-op="version"></h2>
+                <div style="text-align: left; width: 50vw; line-height: 1.5em; max-height: 70vh; overflow-y: auto;">
+                    <ul data-op="changes"></ul>
+                </div>
+                <button class="ui inverted button" style="width: 10%; margin-top: 2em;" data-op="accept">Ok</button>
+            </div>
+        </div>
+
+        <!-- ChangeLogView -->
+        <div id="view-changelog" class="ui main container css-hidden">
+            <div class="ui basic segment" style="padding: 0; padding-top: 1em;">
+                <div class="ui close left rail">
+                    <div class="ui basic segment">
+                        <h2 class="ui centered header">Usage terms</h2>
+                        <div style="text-align: left; margin-left: -3em; margin-right: -2em;">
+                            <ul>
+                                <li>
+                                    It is advised to never share HAR files, as they <b>might</b> contain private data.
+                                    If needed, you can import & export the file to create safe to share version.
+                                </li>
+                                <li style="margin-top: 1em;">
+                                    This site is distributed <b>AS IS</b>, without any warranties. It is recommended to keep a complete archive file or the original files used in case something happens.
+                                </li>
+                                <li style="margin-top: 1em;">
+                                    You are free to use, share and download this site, but you're not allowed to redistribute it or any of its parts.
+                                </li>
+                                <li style="margin-top: 1em;">
+                                    You agree to limit the data collection to reasonable amounts, such as capturing single guild or at most 100 players at once.
+                                </li>
+                                <li style="margin-top: 1em;">
+                                    By using this tool you agree to and follow the Shakes & Fidget <a href="https://s1.sfgame.de/legal.php?l=en&t=terms">Terms and Conditions</a>.
+                                </li>
+                                <li style="margin-top: 1em;">
+                                    All data shared via the integrated share function are not protected in any other way other than the share key. The key is valid only for 24 hours after which the data will be automatically deleted.
+                                </li>
+                                <li style="margin-top: 1em;">
+                                    Automating the collection process in any way is strictly forbidden!
+                                </li>
+                                <li style="margin-top: 1em;">
+                                    The owner of this site is in no way responsible for any losses caused by the use of this site or any of its functions.
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="ui tiny red basic fluid button" data-op="deny-terms">I no longer accept these terms</div>
+                    </div>
+                </div>
+                <div class="ui grid" data-op="list">
+
+                </div>
+            </div>
+        </div>
+
+        <!-- FilesView -->
+        <div id="view-files" class="ui main container css-hidden sf-container">
+            <div class="ui grid">
+                <div class="twelve wide column" data-op="list"></div>
+                <div class="four wide column">
+                    <div class="ui segment sticky">
+                        <div class="ui tiny two vertical statistics">
+                            <div class="statistic">
+                                <div class="value" data-op="pcount"></div>
+                                <div class="label">Players</div>
+                            </div>
+                            <div class="statistic">
+                                <div class="value" data-op="rpcount"></div>
+                                <div class="label">Entries</div>
+                            </div>
+                        </div>
+                        <br>
+                        <div class="ui tiny two vertical statistics" style="margin-bottom: 0.5em;">
+                            <div class="statistic">
+                                <div class="value" data-op="gcount"></div>
+                                <div class="label">Groups</div>
+                            </div>
+                            <div class="statistic">
+                                <div class="value" data-op="fcount"></div>
+                                <div class="label">Files</div>
+                            </div>
+                        </div>
+                        <hr/>
+                        <!-- IMPORT -->
+                        <div>
+                            <label class="fluid ui secondary button" for="button-upload">
+                                <i class="small upload icon"></i> Import from File
+                            </label>
+                            <input type="file" multiple data-op="upload" accept=".har,.json" class="css-hidden" id="button-upload">
+                        </div>
+                        <label class="fluid ui secondary button sf-margin top-05" data-op="shared">
+                            <i class="small share alternate icon"></i> Import Shared
+                        </label>
+                        <label class="fluid ui secondary button sf-margin top-05" data-op="endpoint">
+                            <i class="small gamepad icon"></i> Import from Game
+                        </label>
+                        <hr class="sf-margin top-20"/>
+                        <!-- EXPORT -->
+                        <div>
+                            <div class="ui fluid buttons">
+                                <button class="ui secondary basic button" data-op="export">
+                                    <i class="small download icon icon"></i> Export all
+                                </button>
+                                <button class="ui compact secondary icon button" style="flex: 0 0 3.5em;" data-op="cloud-export">
+                                    <i class="share alternate icon"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="sf-margin top-05">
+                            <div class="ui fluid buttons">
+                                <button class="ui button secondary basic" data-op="export-partial">
+                                    <i class="small download icon icon"></i> Export selected
+                                </button>
+                                <button class="ui compact secondary icon button" style="flex: 0 0 3.5em;" data-op="cloud-export-partial">
+                                    <i class="share alternate icon"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <hr class="sf-margin top-20"/>
+                        <!-- MERGE -->
+                        <label class="fluid ui secondary basic button" data-op="merge">
+                            <i class="small clone outline icon"></i> Merge selected
+                        </label>
+                        <hr class="sf-margin top-20"/>
+                        <!-- WIPE -->
+                        <label class="fluid ui red basic button" data-op="wipeall">
+                            <i class="small trash alternate outline icon"></i> Delete all
+                        </label>
+                        <br/>
+                        <h3 class="ui centered header">Configuration</h3>
+                        <div class="ui checkbox sf-margin left-20" data-op="checkbox-lazy">
+                            <input type="checkbox">
+                            <label>Use lazy loading</label>
+                        </div>
+                        <div class="ui checkbox sf-margin left-20 top-05" data-op="checkbox-obfuscated">
+                            <input type="checkbox">
+                            <label>Obfuscate player names</label>
+                        </div>
+                        <div class="ui checkbox sf-margin left-20 top-05" data-op="checkbox-alwaysprev">
+                            <input type="checkbox">
+                            <label>Compare previous</label>
+                        </div>
+                        <div class="ui checkbox sf-margin left-20 top-05" data-op="checkbox-hidden">
+                            <input type="checkbox">
+                            <label>Show hidden files</label>
+                        </div>
+                        <div class="ui checkbox sf-margin left-20 top-05" data-op="checkbox-inventory">
+                            <input type="checkbox">
+                            <label>Load inventory & companions</label>
+                        </div>
+                        <div class="ui checkbox sf-margin left-20 top-05" data-op="checkbox-tracker">
+                            <input type="checkbox">
+                            <label>Enable tracker</label>
+                        </div>
+                        <div class="ui checkbox sf-margin left-20 top-05" data-op="checkbox-insecure">
+                            <input type="checkbox">
+                            <label>Allow restricted tags</label>
+                        </div>
+                        <div class="ui checkbox sf-margin left-20 top-05 checkbox-war" data-op="checkbox-recent" data-tooltip="Please back up your files before using this option.">
+                            <input type="checkbox">
+                            <label>Load only recent files</label>
+                        </div>
+                        <div class="ui checkbox sf-margin left-20 top-05 checkbox-war" data-op="checkbox-beta" data-tooltip="Warning! These features might not be safe to use.">
+                            <input type="checkbox">
+                            <label>Experimental features</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SettingsView -->
+        <div id="view-settings" class="ui main container css-hidden" style="width: 95vw;">
+            <div class="ui custom popup left center" data-op="save-popup" style="width: 25em;">
+                <h2 class="ui centered header" style="color: black !important; margin-bottom: 1em;">Save template</h2>
+                <div class="ui fluid search scrolling dropdown" data-op="name">
+                    <div class="text"></div>
+                    <i class="dropdown icon"></i>
+                </div>
+            </div>
+            <div class="ui grid">
+                <div class="three wide column">
+                    <h3 class="ui centered header" style="margin-top: 0;">Settings</h3>
+                    <div class="ui middle aligned selection list css-selection-list css-top-line" data-op="settings-list">
+
+                    </div>
+                    <div class="css-template-heading">
+                        <h3 class="ui centered header css-template-header">Templates</h3>
+                    </div>
+                    <div class="ui middle aligned selection list css-selection-list css-top-line" data-op="template-list">
+
+                    </div>
+                </div>
+                <div class="twelve wide column">
+                    <div class="ui form ta-form">
+                        <div class="field">
+                            <div class="ta-wrapper">
+                                <div class="ta-content"></div>
+                                <textarea wrap="off" class="ta-area" spellcheck="false"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="one wide column css-settings-buttons">
+                    <button class="ui fluid secondary basic button" data-op="wiki-home"><div><i class="book icon"></i>Wiki</div></button>
+                    <button class="ui fluid secondary basic button" data-op="browse"><div><i class="globe icon"></i>Scripts</div></button>
+                    <button class="ui fluid secondary basic button" data-op="templates"><div><i class="edit outline icon"></i>Templates</div></button>
+                    <button class="ui fluid secondary basic button" data-op="save-template"><div><i class="save icon"></i>Save</div></button>
+                    <br/>
+                    <button class="ui fluid secondary basic button" data-op="copy"><div><i class="copy outline icon"></i>Copy</div></button>
+                    <button class="ui fluid secondary basic button" data-op="prev"><div><i class="undo icon"></i>Undo</div></button>
+                    <button class="ui fluid secondary basic button" data-op="next"><div><i class="redo icon"></i>Redo</div></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SettingsFloatView -->
+        <div id="modal-settings" class="ui basic modal text-white css-inverted" style="width: 95vw;">
+            <div class="ui custom popup left center" data-op="save-popup" style="width: 25em;">
+                <h2 class="ui centered header" style="color: black !important; margin-bottom: 1em;">Save template</h2>
+                <div class="ui fluid search scrolling dropdown" data-op="name">
+                    <div class="text"></div>
+                    <i class="dropdown icon"></i>
+                </div>
+            </div>
+            <div class="ui grid">
+                <div class="three wide column">
+                    <div class="css-template-heading">
+                        <h3 class="ui centered header css-template-header">Templates</h3>
+                    </div>
+                    <div class="ui middle aligned selection list css-selection-list css-template-fullheight css-top-line" data-op="template-list">
+
+                    </div>
+                </div>
+                <div class="twelve wide column">
+                    <div class="ui form ta-form">
+                        <div class="field">
+                            <div class="ta-wrapper">
+                                <div class="ta-content"></div>
+                                <textarea wrap="off" class="ta-area" spellcheck="false"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="one wide column css-settings-buttons">
+                    <button class="ui fluid inverted basic button" data-op="close"><div><i class="close icon"></i>Close</div></button>
+                    <br/>
+                    <button class="ui fluid inverted basic button" data-op="save"><div><i class="save icon"></i>Apply</div></button>
+                    <br/>
+                    <button class="ui fluid inverted basic button" data-op="delete"><div><i class="trash icon"></i>Remove</div></button>
+                    <br/>
+                    <button class="ui fluid inverted basic button" data-op="wiki-home"><div><i class="book icon"></i>Wiki</div></button>
+                    <button class="ui fluid inverted basic button" data-op="browse"><div><i class="globe icon"></i>Scripts</div></button>
+                    <button class="ui fluid inverted basic button" data-op="templates"><div><i class="edit outline icon"></i>Templates</div></button>
+                    <button class="ui fluid inverted basic button" data-op="save-template"><div><i class="save icon"></i>Save</div></button>
+                    <button class="ui fluid inverted basic button" data-op="save-apply-template"><div><i class="save icon"></i>Save & Apply</div></button>
+                    <br/>
+                    <button class="ui fluid inverted basic button" data-op="copy"><div><i class="copy outline icon"></i>Copy</div></button>
+                    <button class="ui fluid inverted basic button" data-op="prev"><div><i class="undo icon"></i>Undo</div></button>
+                    <button class="ui fluid inverted basic button" data-op="next"><div><i class="redo icon"></i>Redo</div></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PlayersView -->
+        <div id="view-players" class="ui main container css-hidden sf-container">
+            <div class="ui basic segment margin-none-bottom padding-none-bottom">
+                <div class="ui grid">
+                    <div class="three wide left aligned column"></div>
+                    <div class="ten wide middle aligned column">
+                        <div class="ui fluid icon input pl-searchbar css-searchbar-fix">
+                            <input class="prompt" type="text" placeholder="Filter players by server, class, guild and/or username" data-op="filter">
+                        </div>
+                    </div>
+                    <div class="three wide column">
+                        <div class="ui small basic icon right floated buttons">
+                            <button class="ui button" data-position="bottom center" data-tooltip="Custom settings" data-op="configure"><i class="cog icon"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="ui five column grid" data-op="list"></div>
+            <div class="ui five column grid margin-large-top" data-op="list-secondary"></div>
+            <div class="css-ol-show-other">
+                <div class="ui checkbox" data-op="others">
+                    <input type="checkbox">
+                    <label>Show other players</label>
+                </div>
+            </div>
+            <div class="css-show-hidden">
+                <div class="ui checkbox" data-op="hidden">
+                    <input type="checkbox">
+                    <label>Show hidden</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- GroupsView -->
+        <div id="view-groups" class="ui main container css-hidden sf-container">
+            <div class="ui five column grid" data-op="list"></div>
+            <div class="ui five column grid margin-large-top" data-op="list-secondary"></div>
+            <div class="css-gl-show-other">
+                <div class="ui checkbox" data-op="others">
+                    <input type="checkbox">
+                    <label>Show other guilds</label>
+                </div>
+            </div>
+            <div class="css-show-hidden">
+                <div class="ui checkbox" data-op="hidden">
+                    <input type="checkbox">
+                    <label>Show hidden</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- BrowseView -->
+        <div id="view-browse" class="ui main container css-hidden sf-container">
+            <div class="ui basic segment margin-none-bottom padding-none-bottom">
+                <div class="ui grid">
+                    <div class="three wide left aligned column">
+                        <div class="ui scrolling dropdown" data-op="timestamp">
+                            <div class="default text"></div>
+                            <i class="dropdown icon"></i>
+                        </div>
+                        <br/>
+                        <div class="ui scrolling dropdown" data-op="reference">
+                            <div class="default text"></div>
+                            <i class="dropdown icon"></i>
+                        </div>
+                    </div>
+                    <div class="ten wide middle aligned column">
+                        <div class="ui fluid icon input pl-searchbar">
+                            <input class="prompt" type="text" placeholder="Filter players by server, class, guild and/or username" data-op="filter">
+                        </div>
+                    </div>
+                    <div class="three wide column">
+                        <div class="ui small basic icon right floated buttons">
+                            <button class="ui button" data-position="bottom center" data-tooltip="Save as image" data-op="save"><i class="download icon"></i></button>
+                            <button class="ui button" data-position="bottom center" data-tooltip="Copy table" data-op="copy"><i class="copy icon"></i></button>
+                            <button class="ui button" data-position="bottom center" data-tooltip="Copy table for fight simulator" data-op="copy-sim"><i class="copy outline icon"></i></button>
+                            <div class="ui top left pointing dropdown button" data-op="configure">
+                                <i class="cog icon"></i>
+                                <div class="menu" style="overflow-y: scroll; max-height: 50vh;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <table class="sftools-table" data-op="table"></table>
+            <div class="css-show-hidden">
+                <div class="ui checkbox" data-op="hidden">
+                    <input type="checkbox">
+                    <label>Show hidden</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- PlayerDetailFloatView -->
+        <div id="modal-playerdetail" class="ui basic large modal"></div>
+
+        <!-- PlayerHistoryView -->
+        <div id="view-history" class="ui main container css-hidden sf-container">
+            <div class="ui basic segment margin-none-bottom padding-none-bottom">
+                <div class="ui grid">
+                    <div class="three wide column"></div>
+                    <div class="ten wide middle aligned column">
+                        <h1 class="ui centered header" data-op="name"></h1>
+                    </div>
+                    <div class="three wide column">
+                        <div class="ui small basic icon right floated buttons">
+                            <button class="ui button" data-position="bottom center" data-tooltip="Save as image" data-op="save"><i class="download icon"></i></button>
+                            <button class="ui button" data-position="bottom center" data-tooltip="Share" data-op="share"><i class="cloud upload icon"></i></button>
+                            <div class="ui icon top left pointing dropdown button" data-op="export-dropdown">
+                                <i class="file archive icon"></i>
+                                <div class="menu">
+                                    <div class="header">Export options</div>
+                                    <div class="item" data-op="export">All</div>
+                                    <div class="item" data-op="export-l">Latest</div>
+                                    <div class="item" data-op="export-l5">Latest 5</div>
+                                </div>
+                            </div>
+                            <button class="ui button" data-position="bottom center" data-tooltip="Copy table" data-op="copy"><i class="copy icon"></i></button>
+                            <div class="ui top left pointing dropdown button" data-op="configure">
+                                <i class="cog icon"></i>
+                                <div class="menu" style="overflow-y: scroll; max-height: 50vh;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <table class="sftools-table" data-op="table"></table>
+        </div>
+
+        <!-- ExceptionView -->
+        <div id="modal-exception" class="ui basic modal">
+            <div class="ui icon header">
+                <i class="exclamation triangle icon"></i>
+                Error
+            </div>
+            <div class="content text-center">
+                <p data-op="content"></p>
+            </div>
+        </div>
+
+        <div id="modal-share" class="ui mini modal">
+            <div class="header">File sharing</div>
+            <div class="content text-left" style="height: 15em;">
+                <h4 class="ui header">Options</h4>
+                <div style="margin-top: 0.5em;">
+                    <div class="ui checkbox" data-op="once">
+                        <input type="checkbox" name="checkbox1">
+                        <label for="checkbox1">Single use only
+                            <br>
+                            <span style="color: gray;">Please consider keeping this option enabled unless you plan to share the file with multiple people.</span>
+                        </label>
+                    </div>
+                </div>
+                <div style="margin-top: 1.5em">
+                    <h4 class="ui header">Your code:</h4>
+                    <div data-op="content-button">
+                        <button class="ui fluid button" data-op="send">Get code</button>
+                    </div>
+                    <div data-op="content-code" class="text-center" style="padding-top: 0.25em;">
+                        <code style="white-space: pre; font-size: 1.3em;" data-op="code">ABCDEFGHIJKLMNOPQRSTUVWX</code>
+                    </div>
+                </div>
+            </div>
+            <div class="actions">
+                <div class="ui approve button">OK</div>
+            </div>
+        </div>
+
+        <div id="modal-onlinetemplates" class="ui small modal">
+            <i class="cctemplate close icon"></i>
+            <div class="header">Public scripts</div>
+            <div class="content text-center">
+                <div class="dimmable">
+                    <div class="ui middle aligned grid css-nomargin-grid" style="margin-top: -0.5em; margin-right: -3px;">
+                        <div class="row">
+                            <div class="text-left seven wide column"><b>Description</b></div>
+                            <div class="text-left four wide column"><b>Author</b></div>
+                            <div class="text-left three wide column"><b>Created on</b></div>
+                        </div>
+                    </div>
+                    <div style="overflow-y: scroll; height: 45vh; padding-top: 2.5em; margin-right: -1.5em; padding-bottom: 0;">
+                        <div class="ui active inverted dimmer" data-op="dimmer">
+                            <div class="ui indeterminate text loader">Fetching scripts</div>
+                        </div>
+                        <div class="ui middle aligned grid css-nomargin-grid" style="margin-right: 0em;" data-op="content">
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="content" style="border-top: 1px solid rgba(34,36,38,.15); margin-top: -1.5em;">
+                <div class="ui middle aligned grid css-nomargin-grid">
+                    <div class="fifteen wide column">
+                        <div class="ui fluid small input">
+                            <input type="text" placeholder="Enter your private code..." data-op="private-value">
+                        </div>
+                    </div>
+                    <div class="one wide column css-template-buttons">
+                        <div class="ui icon right floated small buttons">
+                            <button class="ui button" data-op="private"><i class="play icon"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-templates" class="ui small modal">
+            <i class="cctemplate close icon"></i>
+            <div class="header">Templates</div>
+            <div class="content" style="padding: 0;">
+                <div class="dimmable">
+                    <div class="ui two column grid css-nomp-grid" style="height:35em;">
+                        <div class="ui inverted dimmer" data-op="dimmer">
+                            <div class="ui indeterminate text loader">Commiting changes</div>
+                        </div>
+                        <div class="column" style="height: 100%;">
+                            <div class="ui middle aligned selection list css-template-list css-templates-list" data-op="templates">
+
+                            </div>
+                        </div>
+                        <div class="column" style="border-left: 1px solid rgba(34,36,38,.15);">
+                            <div class="ui form" style="padding-top: 1em; padding-left: 1em; padding-right: 1em; height: 100%;">
+                                <div class="field">
+                                    <div class="ui icon fluid input">
+                                        <input class="text-center" type="text" disabled data-op="name">
+                                        <i class="link external alternate icon" data-op="open"></i>
+                                    </div>
+                                </div>
+                                <div class="two fields">
+                                    <div class="field">
+                                        <label>Changed on</label>
+                                        <div class="ui small fluid input">
+                                            <input disabled type="text" data-op="timestamp" style="border: none;">
+                                        </div>
+                                    </div>
+                                    <div class="field">
+                                        <label>Tool Version</label>
+                                        <div class="ui small fluid input">
+                                            <input disabled type="text" data-op="version" style="border: none;">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label>Compatibility</label>
+                                    <div class="ui small fluid input">
+                                        <input disabled type="text" data-op="compat" style="border: none;">
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label>Published on</label>
+                                    <div class="ui small fluid input">
+                                        <input disabled type="text" data-op="timestamp2" style="border: none;">
+                                    </div>
+                                </div>
+                                <div class="two fields">
+                                    <div class="nine wide field">
+                                        <label>Code</label>
+                                        <div class="ui small fluid input">
+                                            <input readonly type="text" data-op="key" style="border: none; font-family: monospace,monospace;">
+                                        </div>
+                                    </div>
+                                    <div class="seven wide field">
+                                        <label><br/></label>
+                                        <button class="ui fluid basic secondary button" data-tooltip="Publish template" data-op="publish"><i class="globe icon"></i>Publish</button>
+                                    </div>
+                                </div>
+                                <br/>
+                                <div class="fields" style="margin-top: 5em;">
+                                    <div class="seven wide field">
+                                        <button class="ui fluid basic secondary button" data-tooltip="Update template with current script" data-op="update"><i class="recycle icon"></i>Update</button>
+                                    </div>
+                                    <div class="two wide field">
+
+                                    </div>
+                                    <div class="seven wide field">
+                                        <button class="ui fluid red basic button" data-tooltip="Remove / Unpublish template" data-op="delete"><i class="trash icon"></i><span>Remove</span></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-onlinefile" class="ui mini modal">
+            <div class="header">File Sharing</div>
+            <div class="content text-center">
+                <p>Enter your code:</p>
+                <div class="ui fluid input">
+                    <input type="text" placeholder="" data-op="input" style="text-align: center;">
+                </div>
+                <p data-op="extra" style="color: red; margin-top: 1em;">Invalid or expired code!</p>
+            </div>
+            <div class="actions">
+                <div class="ui cancel button">Cancel</div>
+                <div class="ui approve button">OK</div>
+            </div>
+        </div>
+
+        <div id="modal-endpoint" class="ui basic modal">
+            <iframe style="opacity: 0%;" data-op="iframe"></iframe>
+            <div class="ui grid" data-op="step1" style="margin-top: -14em;">
+                <div class="five wide column"></div>
+                <div class="six wide column">
+                    <div class="ui form darker-placeholder">
+                        <div class="field">
+                            <label style="color: white;">Username</label>
+                            <input type="text" autocomplete="username" data-op="textUsername" name="username" placeholder="username@s1.sfgame.de">
+                        </div>
+                        <div class="field">
+                            <label style="color: white;">Password</label>
+                            <input type="password" autocomplete="current-password" name="password" data-op="textPassword">
+                        </div>
+                        <div class="grouped fields">
+                            <div class="field">
+                                <div class="ui radio checkbox" data-op="modeDefault">
+                                    <input type="radio" name="endpointMode" checked="checked">
+                                    <label style="color: white;">Capture own + selected characters</label>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <div class="ui radio checkbox" data-op="modeOwn">
+                                    <input type="radio" name="endpointMode">
+                                    <label style="color: white;">Capture own character</label>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <div class="ui radio checkbox" data-op="modeAll">
+                                    <input type="radio" name="endpointMode">
+                                    <label style="color: white;">Capture all characters</label>
+                                </div>
+                            </div>
+                        </div>
+                        <br/>
+                        <div class="ui two buttons">
+                            <button class="ui secondary button fluid" data-op="back">Cancel</button>
+                            <button class="ui primary button fluid" data-op="login">Continue</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="five wide column"></div>
+            </div>
+            <div class="ui grid" data-op="step2" style="display: none; margin-top: -14em;">
+                <div class="sixteen wide column">
+                    <img src="/endpoint/logo.png" class="unity-loading">
+                </div>
+                <div class="sixteen wide column">
+                    <h3 class="ui header centered white">Loading Endpoint</h3>
+                </div>
+            </div>
+            <div class="ui grid" data-op="step3" style="display: none; margin-top: -14em;">
+                <div class="five wide column"></div>
+                <div class="six wide column">
+                    <h2 class="ui header centered white">Select players to be imported</h2>
+                    <hr/>
+                    <div class="ui celled relaxed list" data-op="list" style="height: 30em; overflow-y: auto;">
+
+                    </div>
+                    <div class="ui two buttons">
+                        <button class="ui secondary button fluid" data-op="back">Cancel</button>
+                        <button class="ui primary button fluid" data-op="import">Continue</button>
+                    </div>
+                </div>
+                <div class="five wide column"></div>
+            </div>
+            <div class="ui grid" data-op="step4" style="display: none;">
+                <div class="ui large text loader">Contacting the server for information</div>
+            </div>
+            <div class="ui grid" data-op="step5" style="display: none; margin-top: -14em;">
+                <div class="five wide column"></div>
+                <div class="six wide column">
+                    <h3 class="ui header centered white">Fetching data</h3>
+                    <div class="ui green active progress" data-percent="0">
+                        <div class="bar">
+                        </div>
+                    </div>
+                </div>
+                <div class="five wide column"></div>
+            </div>
+            <div class="ui grid" data-op="error" style="display: none; margin-top: -14em;">
+                <div class="five wide column"></div>
+                <div class="six wide column">
+                    <h2 class="ui header centered white" data-op="error-text"></h2>
+                    <br/>
+                    <br/>
+                    <button class="ui secondary button fluid" data-op="error-button">Continue</button>
+                </div>
+                <div class="five wide column"></div>
+            </div>
+        </div>
+
+        <!-- Update file modal -->
+        <div id="modal-fileupdate" class="ui basic modal">
+            <div class="ui grid" style="margin-top: -14em;">
+                <div class="five wide column"></div>
+                <div class="six wide column">
+                    <div class="ui form">
+                        <div class="field">
+                            <label style="color: white;">Label</label>
+                            <input type="text" data-op="textLabel" placeholder="File description">
+                        </div>
+                        <div class="field">
+                            <label style="color: white;">Version</label>
+                            <input type="text" data-op="textVersion" placeholder="Server version">
+                        </div>
+                        <div class="field">
+                            <label style="color: white;">Color</label>
+                            <input type="text" data-op="textColor" placeholder="Color name">
+                        </div>
+                        <div class="field">
+                            <label style="color: white;">Timestamp</label>
+                            <input type="text" data-op="textTimestamp" placeholder="File timestamp">
+                        </div>
+                        <br/>
+                        <div class="ui two buttons">
+                            <button class="ui secondary button fluid" data-op="back">Cancel</button>
+                            <button class="ui primary button fluid" data-op="save">Save</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="five wide column"></div>
+            </div>
+        </div>
+
+        <!-- GroupDetailView -->
+        <div id="view-groupdetail" class="ui main container css-hidden sf-container">
+            <div class="ui segment center aligned basic">
+                <div class="ui extreme header" data-op="name"></div>
+            </div>
+            <div class="ui basic segment margin-none-bottom padding-none-bottom">
+                <div class="ui grid">
+                    <div class="three wide middle aligned column">
+                        <div class="ui scrolling dropdown" data-op="timestamp">
+                            <div class="default text"></div>
+                            <i class="dropdown icon"></i>
+                        </div>
+                    </div>
+                    <div class="two wide middle aligned column">
+                        compared to
+                    </div>
+                    <div class="three wide middle aligned column">
+                        <div class="ui scrolling dropdown" data-op="reference">
+                            <div class="default text"></div>
+                            <i class="dropdown icon"></i>
+                        </div>
+                    </div>
+                    <div class="eight wide column">
+                        <div class="ui small basic icon right floated buttons">
+                            <button class="ui button" data-tooltip="Save as image" data-op="save"><i class="download icon"></i></button>
+                            <button class="ui button" data-tooltip="Share" data-op="share"><i class="cloud upload icon"></i></button>
+                            <div class="ui icon top left pointing dropdown button" data-op="export-dropdown">
+                                <i class="file archive icon"></i>
+                                <div class="menu">
+                                    <div class="header">Export options</div>
+                                    <div class="item" data-op="export">All</div>
+                                    <div class="item" data-op="export-l">Latest</div>
+                                    <div class="item" data-op="export-l5">Latest 5</div>
+                                    <div class="item" data-op="export-s">Selected</div>
+                                    <div class="item" data-op="export-sr">Selected & Reference</div>
+                                </div>
+                            </div>
+                            <button class="ui button" data-tooltip="Copy table" data-op="copy"><i class="copy icon"></i></button>
+                            <button class="ui button" data-tooltip="Copy table for fight simulator" data-op="copy-sim"><i class="copy outline icon"></i></button>
+                            <div class="ui top left pointing dropdown button" data-op="configure">
+                                <i class="cog icon"></i>
+                                <div class="menu" style="overflow-y: scroll; max-height: 50vh;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <table class="sftools-table" data-op="table"></table>
+        </div>
+
+        <input type="file" accept=".json" id="snapshot-upload" style="display: none;">
+
+        <!-- UI Handler -->
+        <script type="text/javascript">
+            var rawKeys = window.location.href.split(/[\?\&]/);
+            var keys = {};
+
+            for (var key of rawKeys.slice(1)) {
+                if (key.includes('=')) {
+                    var [k, v] = key.split('=', 2);
+                    keys[k] = v;
+                } else {
+                    keys[key] = -1;
+                }
+            }
+
+            if (keys['template'] && keys['template'].length == 12) {
+                let addTemplate = arg => {
+                    if (arg && arg.success) {
+                        if (Templates.getKeys().includes(arg.description)) {
+                            arg.description += ` (${ formatDate(Date.now()) })`;
+                        }
+
+                        Templates.save(arg.description, arg.content, arg.compat);
+                    }
+
+                    window.location.href = window.location.href.split('?')[0];
+                }
+
+                $('#modal-loader .loader').html('Fetching template');
+                $.ajax({
+                    url: `https://sftools-api.herokuapp.com/scripts?key=${ keys['template'] }`,
+                    type: 'GET'
+                }).done(arg => addTemplate(arg)).fail(() => addTemplate());
+            } else {
+                var temp = keys['temp'] == -1;
+                var slot = isNaN(keys['slot']) ? 0 : Math.max(0, Number(keys['slot']));
+
+                var beta = SiteOptions.beta;
+                let inventory = keys['inv'] == -1 || SiteOptions.inventory;
+
+                if (temp) {
+                    $('.css-temporary').removeClass('css-hidden');
+                }
+
+                SiteOptions.params.temp = temp;
+                SiteOptions.params.beta = beta;
+
+                UI.preinitialize();
+
+                let loadStorage = (debug_snapshot) => Storage.load(function () {
+                    UI.initialize();
+                    UI.show(UI.Groups);
+
+                    $('#show-players').click(() => UI.show(UI.Players));
+                    $('#show-groups').click(() => UI.show(UI.Groups));
+                    $('#show-browse').click(() => UI.show(UI.Browse));
+                    $('#show-files').click(() => UI.show(UI.Files));
+                    $('#show-settings').click(() => UI.show(UI.Settings));
+                    $('#show-changelog').click(() => UI.show(UI.ChangeLogs));
+
+                    UI.beta(beta);
+
+                    if (localStorage.termsOK != 'true') {
+                        UI.show(UI.Setup);
+                    } else if (localStorage.changeLogOk != MODULE_VERSION) {
+                        UI.show(UI.ChangeLog);
+                    }
+                }, function () {
+                    // Firefox private mode
+                    UI.Loader.alert("Your browser does not support all features required by this page!</br>This issue can be also caused by use of private mode.");
+                }, {
+                    temporary: temp,
+                    lazy: SiteOptions.lazy,
+                    slot: slot,
+                    inventory: inventory,
+                    trackers: true,
+                    debug_snapshot: debug_snapshot
+                });
+
+                if (keys['snapshot'] == -1) {
+                    $('#snapshot-upload').change((event) => {
+                        var reader = new FileReader();
+                        reader.readAsText(Array.from(event.target.files)[0], 'UTF-8');
+                        reader.onload = e => {
+                            try {
+                                loadStorage(JSON.parse(e.target.result));
+                            } catch (exception) {
+                                console.log(exception);
+                            }
+                        }
+                    });
+
+                    $(document).one('click', () => $('#snapshot-upload').click());
+                } else {
+                    loadStorage();
+                }
+            }
+        </script>
+    </body>
+</html>

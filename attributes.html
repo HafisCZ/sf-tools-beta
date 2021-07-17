@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>SFTools - Gold & Experience</title>
+
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="icon" type="image/png" href="res/favicon.png"/>
+
+        <link rel="stylesheet" href="vendor/css/semantic.min.css"/>
+        <link rel="stylesheet" href="css/style.css"/>
+
+        <script src="vendor/js/jquery.3.4.1.min.js"></script>
+        <script src="vendor/js/semantic.min.js"></script>
+
+        <script src="js/enum.js"></script>
+        <script src="js/util.js"></script>
+
+        <style>
+            .orange {
+                color: orange;
+            }
+
+            .green {
+                color: darkgreen;
+            }
+
+            .blue {
+                color: blue;
+            }
+
+            .purple {
+                color: purple;
+            }
+        </style>
+
+        <link href="https://fonts.googleapis.com/css?family=Roboto:300&display=swap" rel="stylesheet">
+    </head>
+    <body>
+        <div class="ui fixed borderless huge menu css-menu">
+            <div class="header item"><a class="css-a-blank" href="index.html">SFTools</a></div>
+            <div class="right menu">
+                <a class="item" href="index.html"><i class="small reply icon"></i><span class="css-small">Go back</span></a>
+            </div>
+        </div>
+
+        <div class="ui main container">
+            <div class="ui grid">
+                <div class="sixteen wide column">
+                    <div class="ui segment">
+                        <h3 class="ui header">Gold</h3>
+                        <div class="ui small form">
+                            <div class="six fields">
+                                <div class="field">
+                                    <label>Level</label>
+                                    <input type="text" id="gold-level">
+                                </div>
+                                <div class="field">
+                                    <label><span class="blue">&bull;</span> Guild bonus %</label>
+                                    <input type="text" id="gold-guild">
+                                </div>
+                                <div class="field">
+                                    <label><span class="blue">&bull;</span> Tower bonus %</label>
+                                    <input type="text" id="gold-tower">
+                                </div>
+                                <div class="field">
+                                    <label><span class="purple">&bull;</span> Gem Mine</label>
+                                    <input type="text" id="gold-mine">
+                                </div>
+                                <div class="field">
+                                    <label><span class="orange">&bull;</span> Gold Pit</label>
+                                    <input type="text" id="gold-pit">
+                                </div>
+                                <div class="field">
+                                    <label><span class="green">&bull;</span> Item Quality Rune</label>
+                                    <input type="text" id="gold-runes">
+                                </div>
+                            </div>
+                            <div class="six fields">
+                                <div class="field">
+                                    <label>Environmental reward</label>
+                                    <input type="text" disabled id="gold-reward">
+                                </div>
+                                <div class="field">
+                                    <label><span class="blue">&bull;</span> Hourly guard duty</label>
+                                    <input type="text" disabled id="gold-guard">
+                                </div>
+                                <div class="field">
+                                    <label>Dice game (3 of a kind)</label>
+                                    <input type="text" disabled id="gold-dice">
+                                </div>
+                                <div class="field">
+                                    <label><span class="purple">&bull;</span> Small gem</label>
+                                    <input type="text" disabled id="gold-gem">
+                                </div>
+                                <div class="field">
+                                    <label><span class="orange">&bull;</span> Hourly Gold Pit</label>
+                                    <input type="text" disabled id="gold-hourly">
+                                </div>
+                                <div class="field">
+                                    <label><span class="green">&bull;</span> 10% Potion</label>
+                                    <input type="text" disabled id="gold-pot10">
+                                </div>
+                            </div>
+                            <div class="six fields">
+                                <div class="field">
+                                    <label>Witch Scroll</label>
+                                    <input type="text" disabled id="gold-scroll">
+                                </div>
+                                <div class="field">
+                                    <label><span class="green">&bull;</span> Quicksand Hourglass</label>
+                                    <input type="text" disabled id="gold-hourglass1">
+                                </div>
+                                <div class="field">
+                                    <label>Dice game (4 of a kind)</label>
+                                    <input type="text" disabled id="gold-dice2">
+                                </div>
+                                <div class="field">
+                                    <label><span class="purple">&bull;</span> Medium gem</label>
+                                    <input type="text" disabled id="gold-gem2">
+                                </div>
+                                <div class="field">
+                                    <label><span class="orange">&bull;</span> Gold Pit time</label>
+                                    <input type="text" disabled id="gold-time">
+                                </div>
+                                <div class="field">
+                                    <label><span class="green">&bull;</span> 15% Potion</label>
+                                    <input type="text" disabled id="gold-pot15">
+                                </div>
+                            </div>
+                            <div class="six fields">
+                                <div class="field">
+                                    <label>Calendar 1 bar</label>
+                                    <input type="text" disabled id="gold-bar">
+                                </div>
+                                <div class="field">
+                                    <label><span class="green">&bull;</span> 10 Quicksand Hourglasses</label>
+                                    <input type="text" disabled id="gold-hourglass10">
+                                </div>
+                                <div class="field">
+                                    <label>Dice game (5 of a kind)</label>
+                                    <input type="text" disabled id="gold-dice3">
+                                </div>
+                                <div class="field">
+                                    <label><span class="purple">&bull;</span> Large gem</label>
+                                    <input type="text" disabled id="gold-gem3">
+                                </div>
+                                <div class="field">
+                                    <label><span class="orange">&bull;</span> Gold Pit capacity</label>
+                                    <input type="text" disabled id="gold-capacity">
+                                </div>
+                                <div class="field">
+                                    <label><span class="green">&bull;</span> 25% Potion</label>
+                                    <input type="text" disabled id="gold-pot25">
+                                </div>
+                            </div>
+                            <div class="six fields">
+                                <div class="field">
+                                    <label>Calendar 3 bars / Locked</label>
+                                    <input type="text" disabled id="gold-bar3">
+                                </div>
+                                <div class="field">
+
+                                </div>
+                                <div class="field">
+
+                                </div>
+                                <div class="field">
+
+                                </div>
+                                <div class="field">
+                                    <label>Witch Potion</label>
+                                    <input type="text" disabled id="gold-witchpot">
+                                </div>
+                                <div class="field">
+                                    <label><span class="green">&bull;</span> Mushroom PoEL</label>
+                                    <input type="text" disabled id="gold-pothp">
+                                </div>
+                            </div>
+                            <div class="six fields">
+                                <div class="field">
+                                    <label>Arena Max</label>
+                                    <input type="text" disabled id="gold-arena">
+                                </div>
+                                <div class="field">
+                                    <label>Fortress Reroll</label>
+                                    <input type="text" disabled id="gold-reroll">
+                                </div>
+                                <div class="field">
+                                    <label>Tower (Level is enemy level)</label>
+                                    <input type="text" disabled id="gold-towerboss">
+                                </div>
+                                <div class="field">
+                                    <label>Twister (Level is enemy level)</label>
+                                    <input type="text" disabled id="gold-twisterboss">
+                                </div>
+                                <div class="field">
+
+                                </div>
+                                <div class="field">
+                                    <label><span class="green">&bull;</span> Gold PoEL</label>
+                                    <input type="text" disabled id="gold-pothp-gold">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ui segment">
+                        <h3 class="ui header">Experience</h3>
+                        <div class="ui small form">
+                            <div class="six fields">
+                                <div class="field">
+                                    <label>Level</label>
+                                    <input type="text" id="xp-level">
+                                </div>
+                                <div class="field">
+                                    <label><span class="green">&bull;</span> Hydra heads</label>
+                                    <input type="text" id="xp-hydra">
+                                </div>
+                                <div class="field">
+                                    <label><span class="orange">&bull;</span> Academy</label>
+                                    <input type="text" id="xp-academy">
+                                </div>
+                            </div>
+                            <div class="six fields">
+                                <div class="field">
+                                    <label>Next Level</label>
+                                    <input type="text" disabled id="xp-next">
+                                </div>
+                                <div class="field">
+                                    <label><span class="green">&bull;</span> Daily mission</label>
+                                    <input type="text" disabled id="xp-daily">
+                                </div>
+                                <div class="field">
+                                    <label><span class="orange">&bull;</span> Hourly Academy</label>
+                                    <input type="text" disabled id="xp-hourly">
+                                </div>
+                                <div class="field">
+                                    <label>Calendar 1 book</label>
+                                    <input type="text" disabled id="xp-calendar1">
+                                </div>
+                                <div class="field">
+                                    <label>Arena</label>
+                                    <input type="text" disabled id="xp-arena">
+                                </div>
+                                <div class="field">
+                                    <label>Dungeon (Level is enemy level)</label>
+                                    <input type="text" disabled id="xp-dungeon">
+                                </div>
+                            </div>
+                            <div class="six fields">
+                                <div class="field"></div>
+                                <div class="field"></div>
+                                <div class="field">
+                                    <label><span class="orange">&bull;</span> Academy time</label>
+                                    <input type="text" disabled id="xp-time">
+                                </div>
+                                <div class="field">
+                                    <label>Calendar 2 books</label>
+                                    <input type="text" disabled id="xp-calendar2">
+                                </div>
+                                <div class="field">
+                                    <label>Wheel book</label>
+                                    <input type="text" disabled id="xp-wheel1">
+                                </div>
+                                <div class="field">
+                                    <label>Twister (Level is enemy level)</label>
+                                    <input type="text" disabled id="xp-twister">
+                                </div>
+                            </div>
+                            <div class="six fields">
+                                <div class="field"></div>
+                                <div class="field"></div>
+                                <div class="field">
+                                    <label><span class="orange">&bull;</span> Academy capacity</label>
+                                    <input type="text" disabled id="xp-capacity">
+                                </div>
+                                <div class="field">
+                                    <label>Calendar 3 books</label>
+                                    <input type="text" disabled id="xp-calendar3">
+                                </div>
+                                <div class="field">
+                                    <label>Wheel books</label>
+                                    <input type="text" disabled id="xp-wheel2">
+                                </div>
+                                <div class="field">
+                                    <label>Habitat Boss</label>
+                                    <input type="text" disabled id="xp-habitat">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ui segment">
+                        <h3 class="ui header">Quests (Experimental)</h3>
+                        <div class="ui small form">
+                            <div class="six fields">
+                                <div class="field">
+                                    <label>Level</label>
+                                    <input type="text" id="quest-level">
+                                </div>
+                                <div class="field">
+                                    <label><span class="green">&bull;</span> Scrapbook %</label>
+                                    <input type="text" id="quest-book">
+                                </div>
+                                <div class="field">
+                                    <label><span class="green">&bull;</span> Guild XP %</label>
+                                    <input type="text" id="quest-xp">
+                                </div>
+                                <div class="field">
+                                    <label><span class="green">&bull;</span> Experience Rune</label>
+                                    <input type="text" id="quest-rxp">
+                                </div>
+                                <div class="field">
+                                    <label><span class="green">&bull;</span> Minimum XP</label>
+                                    <input type="text" disabled id="quest-xpmin">
+                                </div>
+                                <div class="field">
+                                    <label><span class="green">&bull;</span> Maximum XP</label>
+                                    <input type="text" disabled id="quest-xpmax">
+                                </div>
+                            </div>
+                            <div class="six fields">
+                                <div class="field"></div>
+                                <div class="field">
+                                    <label><span class="blue">&bull;</span> Tower</label>
+                                    <input type="text" id="quest-tower">
+                                </div>
+                                <div class="field">
+                                    <label><span class="blue">&bull;</span> Guild Gold %</label>
+                                    <input type="text" id="quest-gold">
+                                </div>
+                                <div class="field">
+                                    <label><span class="blue">&bull;</span> Gold Rune</label>
+                                    <input type="text" id="quest-rgold">
+                                </div>
+                                <div class="field">
+                                    <label><span class="blue">&bull;</span> Minimum Gold</label>
+                                    <input type="text" disabled id="quest-goldmin">
+                                </div>
+                                <div class="field">
+                                    <label><span class="blue">&bull;</span> Maximum Gold</label>
+                                    <input type="text" disabled id="quest-goldmax">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <br/>
+                    <div class="ui segment">
+                        <h3 class="ui header">Calculate price at</h3>
+                        <div class="ui small form">
+                            <div class="two fields">
+                                <div class="field">
+                                    <label>Attribute</label>
+                                    <input type="text" id="priceat-attribute" val="0">
+                                </div>
+                                <div class="field">
+                                    <label>Cost</label>
+                                    <input type="text" disabled id="priceat-price">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ui segment">
+                        <h3 class="ui header">Calculate price between</h3>
+                        <div class="ui small form">
+                            <div class="three fields">
+                                <div class="field">
+                                    <label>From</label>
+                                    <input type="text" id="pricebetween-from">
+                                </div>
+                                <div class="field">
+                                    <label>To</label>
+                                    <input type="text" id="pricebetween-to">
+                                </div>
+                                <div class="field">
+                                    <label>Cost</label>
+                                    <input type="text" disabled id="pricebetween-price">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="sixteen wide column">
+                    <button class="ui right floated button small" id="copy-table-col" style="margin-bottom: 0.5em; margin-top: -1em; margin-left: 1em;">Copy table (comma)</button>
+                    <button class="ui right floated button small" id="copy-table" style="margin-bottom: 0.5em; margin-top: -1em;">Copy table</button>
+                    <table class="ui celled structured table table-group" id="data-table">
+                        <thead>
+                            <tr>
+                                <td width="150">Attribute / Level</td>
+                                <td width="150">Attribute Price</td>
+                                <td width="150">Gold Curve</td>
+                                <td width="150">Griffin</td>
+                                <td width="150">Guard Duty / Dice (3)</td>
+                            </tr>
+                            <tr>
+                                <td colspan="5" class="border-bottom-thick"></td>
+                            </tr>
+                        </thead>
+                        <tbody id="attribute-prices" class="opaque-rows" style="text-align: center;">
+
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <script type="text/javascript">
+            function validate (... elements) {
+                return elements.reduce((errors, element) => {
+                    if (isNaN($(element).val()) || $(element).val() < 0) {
+                        $(element).parent('.field').addClass('error');
+                        return errors + 1;
+                    } else {
+                        $(element).parent('.field').removeClass('error');
+                        return errors;
+                    }
+                }, 0) == 0;
+            }
+
+            function roundShort(value) {
+                return Math.ceil(value * 100) / 100;
+            }
+
+            function getExperienceRequired (value) {
+                if (value >= 393) {
+                    return 1500000000;
+                } else {
+                    return ExperienceRequired[value];
+                }
+            }
+
+            function getMineMultiplier(m) {
+                if (m <= 1) {
+                    return 1;
+                } else if (m >= 14) {
+                    return 24;
+                } else switch (m) {
+                    case 2: return 2;
+                    case 3: return 3;
+                    case 4: return 4;
+                    case 5: return 6;
+                    case 6: return 8;
+                    case 7: return 10;
+                    case 8: return 12;
+                    case 9: return 14;
+                    case 10: return 16;
+                    case 11: return 18;
+                    case 12: return 20;
+                    case 13: return 22;
+                }
+            }
+
+            function getArenaMultiplier (level) {
+                if (level >= 300) {
+                    return 10;
+                } else if (level >= 250) {
+                    return 15;
+                } else if (level >= 200) {
+                    return 20;
+                } else if (level >= 150) {
+                    return 24;
+                } else {
+                    return 28;
+                }
+            }
+
+            function getAcademyMultiplier(m) {
+                if (m <= 1) {
+                    return 1;
+                } else if (m >= 20) {
+                    return 12;
+                } else switch (m) {
+                    case 2: return 1.1;
+                    case 3: return 1.2;
+                    case 4: return 1.3;
+                    case 5: return 1.4;
+                    case 6: return 1.5;
+                    case 7: return 1.6;
+                    case 8: return 2.0;
+                    case 9: return 2.4;
+                    case 10: return 3.2;
+                    case 11: return 4.0;
+                    case 12: return 4.8;
+                    case 13: return 6.4;
+                    case 14: return 8.0;
+                    case 15: return 9.6;
+                    case 16: return 10.0;
+                    case 17: return 10.4;
+                    case 18: return 10.8;
+                    case 19: return 11.2;
+                }
+            }
+
+            var text = '';
+
+            for (var i = 0; i < 3155; i++) {
+                var cost = calculateAttributePrice(i);
+
+                if (i < 632) {
+                    var curve = getGoldCurve(i + 1);
+
+                    var num = Math.trunc(curve / 10);
+                    num = num * 12 / 100;
+                    var griff = Math.min(10E6, num);
+
+                    text += `<tr>
+                        <td>${ i + 1 }</td>
+                        <td>${ cost >= 999 ? formatAsSpacedNumber(cost, ' ') : roundShort(cost) }</td>
+                        <td>${ curve / 100 >= 999 ? formatAsSpacedNumber(curve / 100, ' ') : roundShort(curve / 100) }</td>
+                        <td>${ griff >= 999 ? formatAsSpacedNumber(griff, ' ') : roundShort(griff) }</td>
+                        <td>${ num / 3 >= 999 ? formatAsSpacedNumber(num / 3, ' ') :roundShort(num / 3) }</td>
+                    </tr>`;
+                } else {
+                    text += `<tr><td>${ i + 1 }</td><td>${ cost >= 999 ? formatAsSpacedNumber(cost, ' ') : roundShort(cost) }</td></tr>`;
+                }
+            }
+
+            text += `<tr><td>3156 and above</td><td>${ formatAsSpacedNumber(10e6, ' ') }</td></tr>`;
+
+            $('#attribute-prices').html(text);
+
+            $('#priceat-attribute').on('change input', function () {
+                if (validate($(this))) {
+                    var value = Number($(this).val());
+                    if (value < 1) value = 1;
+
+                    var cost = calculateAttributePrice(value - 1);
+
+                    $('#priceat-price').val(cost >= 10 ? formatAsSpacedNumber(cost, ' ') : roundShort(cost));
+                }
+            });
+
+            $('#pricebetween-from, #pricebetween-to').on('change input', function () {
+                if (validate($('#pricebetween-from'), $('#pricebetween-to'))) {
+                    var from = Number($('#pricebetween-from').val());
+                    var to = Number($('#pricebetween-to').val());
+
+                    if (from > to) {
+                        [from, to] = [to, from];
+                    }
+
+                    var cost = calculateTotalAttributePrice(to - 1) - calculateTotalAttributePrice(from - 1);
+
+                    $('#pricebetween-price').val(cost >= 10 ? formatAsSpacedNumber(cost, ' ') : roundShort(cost));
+                }
+            });
+
+            $('#xp-level, #xp-hydra, #xp-academy').on('change input', function () {
+                if (validate($('#xp-level'), $('#xp-hydra'), $('#xp-academy'))) {
+                    var level = Number($('#xp-level').val());
+                    if (level < 1) level = 1;
+                    else if (level > 699) level = 699;
+
+                    var hydra = Number($('#xp-hydra').val());
+                    if (hydra > 20) hydra = 20;
+                    else if (hydra < 0) hydra = 0;
+
+                    var academy = Number($('#xp-academy').val());
+                    if (academy > 20) academy = 20;
+                    else if (academy < 1) academy = 1;
+
+                    var xp = getExperienceRequired(level);
+                    var multiplier = 1.5 + 0.75 * (level - 1);
+                    var base = xp / multiplier;
+                    var daily = (1 + 0.25 * hydra) * base;
+                    var arena = base / 10;
+                    var hbase = (base / 30) / Math.max(1, Math.exp(30090.33 / 5000000 * (level - 99)));
+                    var hourly = academy * hbase;
+                    var capacity = academy * getAcademyMultiplier(academy) * hbase;
+                    var time = capacity / hourly;
+
+                    var wheel2 = Math.trunc(base / Math.max(1, Math.exp(30090.33 / 5000000 * (level - 99))));
+                    var wheel1 = Math.trunc(wheel2 / 2);
+
+                    var calendar1 = Math.ceil(xp / 15);
+                    var calendar2 = Math.ceil(xp / 10);
+                    var calendar3 = Math.ceil(xp / 5);
+                    var habitat = 6 * hbase * multiplier;
+                    var twister = Math.min(xp / 50, 30E6);
+
+                    $('#xp-time').val(Math.trunc(time) + ' hours ' + Math.trunc(60 * (time % 1)) + ' minutes');
+                    $('#xp-next').val(formatAsSpacedNumber(xp, ' '));
+                    $('#xp-arena').val(formatAsSpacedNumber(arena, ' '));
+                    $('#xp-daily').val(formatAsSpacedNumber(daily, ' '));
+                    $('#xp-hourly').val(formatAsSpacedNumber(hourly, ' '));
+                    $('#xp-capacity').val(formatAsSpacedNumber(capacity, ' '));
+
+                    $('#xp-wheel1').val(formatAsSpacedNumber(wheel1, ' '));
+                    $('#xp-wheel2').val(formatAsSpacedNumber(wheel2, ' '));
+
+                    $('#xp-calendar1').val(formatAsSpacedNumber(calendar1, ' '));
+                    $('#xp-calendar2').val(formatAsSpacedNumber(calendar2, ' '));
+                    $('#xp-calendar3').val(formatAsSpacedNumber(calendar3, ' '));
+
+                    $('#xp-habitat').val(formatAsSpacedNumber(habitat, ' '));
+                    $('#xp-twister').val(formatAsSpacedNumber(twister, ' '));
+                    $('#xp-dungeon').val(formatAsSpacedNumber(calendar3, ' '));
+                }
+            });
+
+            $('#quest-level, #quest-xp, #quest-gold, #quest-tower, #quest-book, #quest-rxp, #quest-rgold').on('change input', function () {
+                if (validate($('#quest-level'), $('#quest-xp'), $('#quest-gold'), $('#quest-tower'), $('#quest-book'), $('#quest-rxp'), $('#quest-rgold'))) {
+                    var level = Number($('#quest-level').val());
+                    if (level < 1) level = 1;
+                    else if (level > 700) level = 700;
+
+                    var gxp = Number($('#quest-xp').val());
+                    if (gxp > 200) gxp = 200;
+                    else if (gxp < 0) gxp = 0;
+
+                    var ggold = Number($('#quest-gold').val());
+                    if (ggold > 200) ggold = 200;
+                    else if (ggold < 0) ggold = 0;
+
+                    var book = Number($('#quest-book').val());
+                    if (book > 100) book = 100;
+                    else if (book < 0) book = 0;
+
+                    var tower = Number($('#quest-tower').val());
+                    if (tower > 100) tower = 100;
+                    else if (tower < 0) tower = 0;
+
+                    var rxp = Number($('#quest-rxp').val());
+                    if (rxp > 10) rxp = 10;
+                    else if (rxp < 0) rxp = 0;
+
+                    var rgold = Number($('#quest-rgold').val());
+                    if (rgold > 50) rgold = 50;
+                    else if (rgold < 0) rgold = 0;
+
+                    var basexp = getExperienceRequired(level) / (1.5 + 0.75 * (level - 1));
+                    var basegold = getGoldCurve(level) * 12 / 1000;
+
+                    var xpmin = (1 + rxp / 100) * (1 + gxp / 100 + book / 100) * basexp / 11 / Math.max(1, Math.exp(30090.33 / 5000000 * (level - 99)));
+                    var xpmax = xpmin * 5;
+
+                    var goldmin = Math.min(10000000, 1 * (1 + ggold / 100 + tower / 100) * basegold / 11) * (1 + rgold / 100);
+                    var goldmax = Math.min(10000000, 5 * (1 + ggold / 100 + tower / 100) * basegold / 11) * (1 + rgold / 100);
+
+                    $('#quest-goldmin').val(goldmin >= 999 ? formatAsSpacedNumber(goldmin, ' ') : roundShort(goldmin));
+                    $('#quest-goldmax').val(goldmax >= 999 ? formatAsSpacedNumber(goldmax, ' ') : roundShort(goldmax));
+
+                    $('#quest-xpmin').val(formatAsSpacedNumber(xpmin, ' '));
+                    $('#quest-xpmax').val(formatAsSpacedNumber(xpmax, ' '));
+                }
+            });
+
+            $('#gold-level, #gold-guild, #gold-tower, #gold-mine, #gold-pit, #gold-runes').on('change input', function () {
+                if (validate($('#gold-level'), $('#gold-guild'), $('#gold-tower'), $('#gold-mine'), $('#gold-runes'), $('#gold-pit'))) {
+                    var level = Number($('#gold-level').val());
+                    if (level < 1) level = 1;
+                    else if (level > 700) level = 700;
+
+                    var guild = Number($('#gold-guild').val());
+                    if (guild > 200) guild = 200;
+                    else if (guild < 0) guild = 0;
+
+                    var tower = Number($('#gold-tower').val());
+                    if (tower > 100) tower = 100;
+                    else if (tower < 0) tower = 0;
+
+                    var mine = Number($('#gold-mine').val());
+                    if (mine < 1) mine = 1;
+                    else if (mine > 14) mine = 14;
+
+                    var runes = Number($('#gold-runes').val());
+                    if (runes < 0) runes = 0;
+                    else if (runes > 5) runes = 5;
+
+                    var pit = Number($('#gold-pit').val());
+                    if (pit < 1) pit = 1;
+                    else if (pit > 100) pit = 100;
+
+                    var num = getGoldCurve(level) * 12 / 1000;
+
+                    var guard = (num / 3) * (1 + guild / 100 + tower / 100);
+                    var reward = num;
+                    var dice = num / 3;
+
+                    var scroll = Math.min(10E6, reward * 12.5 * (1 / 3));
+
+                    var hourly = num * pit / 75;
+                    var guard = Math.min(10E6, guard);
+
+                    var capacity = Math.min(37E6, Math.min(20E6, dice * Math.min(pit, 15) * 8 * (pit / 100)) + Math.max(0, pit - 15) * 200000);
+
+                    var time = capacity / hourly;
+
+                    var gem = num / 6;
+                    gem = Math.min(10E6, gem * getMineMultiplier(mine));
+
+                    var gem2 = getGoldCurve(level + 5) / 10;
+                    gem2 = Math.min(10E6, gem2 * 2 * getMineMultiplier(mine) / 100);
+
+                    var gem3 = getGoldCurve(level + 10) / 10;
+                    gem3 = Math.min(10E6, gem3 * 2 * getMineMultiplier(mine) / 100);
+
+                    var potion = (1 + Math.min(1, Math.max(0, (90 - level) / 10))) * getGoldCurve(Math.max(1, level - runes)) * 15 / 1000;
+
+                    var pot10 = Math.min(5E6, potion / 4);
+                    var pot15 = Math.min(5E6, potion / 2);
+                    var pot25 = Math.min(5E6, potion / 1);
+
+                    var pothp = Math.min(5E6, potion / 3);
+                    var pothp_gold = Math.min(10E6, potion / 1);
+
+                    var reroll = reward * 5 / 8;
+                    var potwitch = reward * 5 / 6;
+
+                    var hourglass1 = Math.min(375000, potion / 6);
+                    if (hourglass1 > 37500) hourglass1 = 375000;
+                    var hourglass10 = Math.min(3750000, 10 * hourglass1);
+
+                    var goldbar3 = dice * 25;
+                    var goldbar1 = 3 * goldbar3 / 10;
+
+                    var towerboss = (9 * getGoldCurve(level + 2 ) / 100);
+                    var twisterboss = (2 * getGoldCurve(level) / 100);
+
+                    var arenagold = level > 95 ? Math.trunc(twisterboss / getArenaMultiplier(level)) : level;
+
+                    reward = Math.min(10E6, reward);
+
+                    $('#gold-bar').val(goldbar1 >= 999 ? formatAsSpacedNumber(goldbar1, ' ') : roundShort(goldbar1));
+                    $('#gold-bar3').val(goldbar3 >= 999 ? formatAsSpacedNumber(goldbar3, ' ') : roundShort(goldbar3));
+                    $('#gold-towerboss').val(towerboss >= 999 ? formatAsSpacedNumber(towerboss, ' ') : roundShort(towerboss));
+                    $('#gold-twisterboss').val(twisterboss >= 999 ? formatAsSpacedNumber(twisterboss, ' ') : roundShort(twisterboss));
+
+                    $('#gold-pot10').val(pot10 >= 999 ? formatAsSpacedNumber(pot10, ' ') : roundShort(pot10));
+                    $('#gold-pot15').val(pot15 >= 999 ? formatAsSpacedNumber(pot15, ' ') : roundShort(pot15));
+                    $('#gold-pot25').val(pot25 >= 999 ? formatAsSpacedNumber(pot25, ' ') : roundShort(pot25));
+                    $('#gold-pothp').val(pothp >= 999 ? formatAsSpacedNumber(pothp, ' ') : roundShort(pothp));
+                    $('#gold-pothp-gold').val(pothp_gold >= 999 ? formatAsSpacedNumber(pothp_gold, ' ') : roundShort(pothp_gold));
+
+                    $('#gold-arena').val(arenagold >= 999 ? formatAsSpacedNumber(arenagold, ' ') : roundShort(arenagold));
+
+                    $('#gold-scroll').val(scroll >= 999 ? formatAsSpacedNumber(scroll, ' ') : roundShort(scroll));
+                    $('#gold-witchpot').val(potwitch >= 999 ? formatAsSpacedNumber(potwitch, ' ') : roundShort(potwitch));
+
+                    $('#gold-hourglass1').val(hourglass1 >= 999 ? formatAsSpacedNumber(hourglass1, ' ') : roundShort(hourglass1));
+                    $('#gold-hourglass10').val(hourglass10 >= 999 ? formatAsSpacedNumber(hourglass10, ' ') : roundShort(hourglass10));
+
+                    $('#gold-guard').val(guard >= 999 ? formatAsSpacedNumber(guard, ' ') : roundShort(guard));
+                    $('#gold-reward').val(reward >= 999 ? formatAsSpacedNumber(reward, ' ') : roundShort(reward));
+                    $('#gold-reroll').val(reroll >= 999 ? formatAsSpacedNumber(reroll, ' ') : roundShort(reroll));
+
+                    $('#gold-dice').val(dice >= 999 ? formatAsSpacedNumber(dice, ' ') : roundShort(dice));
+                    $('#gold-dice2').val(dice * 5 >= 999 ? formatAsSpacedNumber(dice * 5, ' ') : roundShort(dice * 5));
+                    $('#gold-dice3').val(dice * 25 >= 999 ? formatAsSpacedNumber(dice * 25, ' ') : roundShort(dice * 25));
+
+                    $('#gold-gem').val(gem >= 999 ? formatAsSpacedNumber(gem, ' ') : roundShort(gem));
+                    $('#gold-gem2').val(gem2 >= 999 ? formatAsSpacedNumber(gem2, ' ') : roundShort(gem2));
+                    $('#gold-gem3').val(gem3 >= 999 ? formatAsSpacedNumber(gem3, ' ') : roundShort(gem3));
+
+                    $('#gold-hourly').val(hourly >= 999 ? formatAsSpacedNumber(hourly, ' ') : roundShort(hourly));
+                    $('#gold-capacity').val(formatAsSpacedNumber(capacity, ' '));
+                    $('#gold-time').val(Math.trunc(time) + ' hours ' + Math.trunc(60 * (time % 1)) + ' minutes');
+                }
+            });
+
+            $('#copy-table').click(() => {
+                var range = document.createRange();
+                range.selectNode($('#data-table').get(0));
+                window.getSelection().removeAllRanges();
+                window.getSelection().addRange(range);
+                document.execCommand('copy');
+                window.getSelection().removeAllRanges();
+            });
+
+            $('#copy-table-col').click(() => {
+                $('#data-table').find('td').each(function (i, o) {
+                    $(o).html($(o).html().replace('.', ','));
+                });
+
+                var range = document.createRange();
+                range.selectNode($('#data-table').get(0));
+                window.getSelection().removeAllRanges();
+                window.getSelection().addRange(range);
+                document.execCommand('copy');
+                window.getSelection().removeAllRanges();
+
+                $('#data-table').find('td').each(function (i, o) {
+                    $(o).html($(o).html().replace(',', '.'));
+                });
+            });
+        </script>
+    </body>
+</html>

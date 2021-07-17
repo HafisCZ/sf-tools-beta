@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+    <body>
+        <canvas id="upixel" width=1 height=1 style="width: 1px; height: 1px; background: #231F20"></canvas>
+        <script src="build/ba3c549addea8f7df47026b025af4e80.js"></script>
+        <script type="text/javascript">
+            var callback = { };
+            var error = { };
+
+            var unity = undefined;
+
+            function load (callback) {
+                createUnityInstance(document.querySelector("#upixel"), {
+                    dataUrl: "build/ba7f2d7ccdeb7ccb728fad7e6a6e4099.data",
+                    frameworkUrl: "build/da91bbedf4acdea480b7705f445ccfb4.js",
+                    codeUrl: "build/cc0d4acede1fdb5353cc133d0946a163.wasm",
+                    streamingAssetsUrl: "StreamingAssets",
+                    companyName: "mar21",
+                    productName: "Endpoint",
+                    productVersion: "8.1",
+              }).then(unityInstance => {
+                  unity = unityInstance;
+                  callback();
+              });
+            }
+
+            function destroy (callback) {
+                unity.Quit(callback);
+            }
+
+            function login (server, username, password) {
+                unity.SendMessage('Controller', 'Login', JSON.stringify({
+                    server: server,
+                    username: username,
+                    password: password,
+                    version: '80000000000'
+                }));
+            }
+
+            function querry_single (id) {
+                unity.SendMessage('Controller', 'QuerrySingle', id);
+            }
+
+            function querry_all () {
+                unity.SendMessage('Controller', 'QuerryAll');
+            }
+
+            function querry_collect () {
+                unity.SendMessage('Controller', 'QuerrySingleCollect');
+            }
+        </script>
+    </body>
+</html>

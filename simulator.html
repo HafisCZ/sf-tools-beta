@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>SFTools - Fight Simulator</title>
+
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="icon" type="image/png" href="res/favicon.png"/>
+
+        <link rel="stylesheet" href="vendor/css/semantic.min.css"/>
+        <link rel="stylesheet" href="css/style.css"/>
+
+        <script src="vendor/js/jquery.3.4.1.min.js"></script>
+        <script src="vendor/js/semantic.min.js"></script>
+
+        <script src="js/enum.js"></script>
+        <script src="js/util.js"></script>
+
+        <script src="js/plugins.js"></script>
+        <script src="js/core/playa.js"></script>
+        <script src="js/sim/players.js"></script>
+
+        <link href="https://fonts.googleapis.com/css?family=Roboto:300&display=swap" rel="stylesheet">
+
+        <style>
+            .bordered .fields:last-of-type {
+                margin-bottom: 0;
+            }
+
+            .bordered {
+                padding: 0.5em;
+                margin-bottom: 0.5em;
+            }
+
+            .bordered-simple {
+                margin-bottom: 0.35em;
+                padding-top: 0.5em !important;
+                padding-bottom: 0.5em !important;
+                margin-right: 1em;
+                margin-left: 1em;
+            }
+
+            .player-index {
+                position: absolute;
+                font-size: 90%;
+                opacity: 50%;
+                left: -0em;
+                top: 1.5em;
+            }
+
+            .bnone {
+                border: 1px solid transparent;
+            }
+
+            .bone {
+                border: 1px solid orange;
+            }
+
+            .btwo {
+                border: 1px solid purple;
+            }
+
+            .bthree {
+                border: 1px solid blue;
+            }
+
+            .bfour {
+                border: 1px solid red;
+            }
+
+            .bfive {
+                border: 1px solid green;
+            }
+
+            .bsix {
+                border: 1px solid pink;
+            }
+
+            .spaced {
+                margin-top: 2em !important;
+            }
+
+            .sim-player-name-ihof {
+                position: relative;
+            }
+
+            .sim-player-name span {
+                display: none;
+            }
+
+            .sim-player-name-ihof b {
+                position: absolute;
+                left: 0;
+                bottom: 0;
+            }
+
+            .sim-player-name-ihof span {
+                position: absolute;
+                left: 0;
+                top: 0;
+            }
+
+            .selectable {
+                -moz-user-select: -moz-none;
+                -khtml-user-select: none;
+                -webkit-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
+                padding-bottom: 0.25em !important;
+                padding-top: 0.25em !important;
+            }
+
+            .selectable div {
+                padding: 0 !important;
+            }
+
+            .selectable-header div {
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+            }
+
+            .selected {
+                background-color: rgba(0, 0, 0, 0.1);
+                cursor: pointer;
+            }
+
+            .nselected {
+                cursor: pointer;
+            }
+
+            [data-sort-style] {
+                position: relative;
+                margin-top: -15px;
+                padding-top: 15px;
+                margin-bottom: -15px;
+                padding-bottom: 15px;
+                margin-right: -10px;
+                padding-right: 10px;
+                margin-left: -10px;
+                padding-left: 10px;
+            }
+
+            [data-sort-style="1"]::before {
+                content: "\f0de";
+                font-family: Icons;
+                position: absolute;
+                left: 1px;
+                top: -3px;
+                transform: scale(0.7);
+            }
+
+            [data-sort-style="2"]::before {
+                content: "\f0dd";
+                font-family: Icons;
+                position: absolute;
+                left: 1px;
+                bottom: 0px;
+                transform: scale(0.7);
+            }
+
+            .debug-container {
+                position: absolute;
+                top: 5em;
+                left: 1em;
+                font-size: 80%;
+            }
+
+            .class-picture {
+                 margin-left: -0.75em !important;
+                 margin-right: 0.5em !important;
+            }
+
+            .class-none {
+                margin-left: 1.75em;
+            }
+
+            .css-smaller-pad > .column {
+                padding-left: 0.5rem !important;
+                padding-right: 0.5rem !important;
+            }
+        </style>
+    </head>
+    <body class="margin-none-bottom">
+        <div class="ui fixed borderless huge menu css-menu">
+            <div class="header item"><a class="css-a-blank" href="index.html">SFTools</a></div>
+            <div class="right menu">
+                <a class="item" href="index.html"><i class="small reply icon"></i><span class="css-small">Go back</span></a>
+            </div>
+        </div>
+
+        <div class="debug-container">
+            <div class="debug">
+
+            </div>
+        </div>
+
+        <div class="paste-target" onpaste="console.log">
+            Click here and press <b>CTRL&nbsp;+&nbsp;V</b> to paste into the simulator
+        </div>
+
+        <div class="ui main container">
+            <!-- Header -->
+            <div class="ui five columns middle aligned grid">
+                <div class="two wide column">
+
+                </div>
+                <div class="four wide column">
+
+                </div>
+                <div class="four wide column">
+                    <h1 class="ui centered header">Fight Simulator</h1>
+                </div>
+                <div class="four wide column">
+
+                </div>
+                <div class="two wide wide column">
+
+                </div>
+            </div>
+            <div class="ui two columns grid">
+                <!-- Player edit field -->
+                <div class="column">
+                    <div class="ui form" id="sim-editor">
+                        <div class="bordered bone">
+                            <div class="field">
+                                <label>Name</label>
+                                <input class="text-center" type="text" data-path="Name">
+                            </div>
+                            <div class="two fields">
+                                <div class="field">
+                                    <label>Class</label>
+                                    <div class="ui selection compact dropdown" data-path="Class">
+                                        <div class="text"></div>
+                                        <i class="dropdown icon"></i>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label>Mask</label>
+                                    <div class="ui selection compact dropdown" data-path="Mask">
+                                        <div class="text"></div>
+                                        <i class="dropdown icon"></i>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label>Level</label>
+                                    <input class="text-center" type="text" data-path="Level">
+                                </div>
+                            </div>
+                            <div class="five fields">
+                                <div class="field">
+                                    <label>Str</label>
+                                    <input class="text-center" type="text" data-path="Strength.Total">
+                                </div>
+                                <div class="field">
+                                    <label>Dex</label>
+                                    <input class="text-center" type="text" data-path="Dexterity.Total">
+                                </div>
+                                <div class="field">
+                                    <label>Int</label>
+                                    <input class="text-center" type="text" data-path="Intelligence.Total">
+                                </div>
+                                <div class="field">
+                                    <label>Con</label>
+                                    <input class="text-center" type="text" data-path="Constitution.Total">
+                                </div>
+                                <div class="field">
+                                    <label>Lck</label>
+                                    <input class="text-center" type="text" data-path="Luck.Total">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bordered btwo">
+                            <div class="five fields">
+                                <div class="field">
+                                    <label>Min</label>
+                                    <input class="text-center" type="text" data-path="Items.Wpn1.DamageMin" placeholder="Item Min">
+                                </div>
+                                <div class="field">
+                                    <label>Max</label>
+                                    <input class="text-center" type="text" data-path="Items.Wpn1.DamageMax" placeholder="Item Max">
+                                </div>
+                                <div class="field">
+                                    <label>Crit</label>
+                                    <div class="ui selection compact dropdown" data-path="Items.Wpn1.HasEnchantment">
+                                        <div class="text"></div>
+                                        <i class="dropdown icon"></i>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label>Rune</label>
+                                    <div class="ui selection compact dropdown" data-path="Items.Wpn1.AttributeTypes.2">
+                                        <div class="text"></div>
+                                        <i class="dropdown icon"></i>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label><br/></label>
+                                    <input class="text-center" type="text" data-path="Items.Wpn1.Attributes.2" placeholder="0 - 60">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bordered bthree" data-optional="Weapon2">
+                            <div class="five fields">
+                                <div class="field">
+                                    <label>Min</label>
+                                    <input class="text-center" type="text" data-path="Items.Wpn2.DamageMin" placeholder="Item Min">
+                                </div>
+                                <div class="field">
+                                    <label>Max</label>
+                                    <input class="text-center" type="text" data-path="Items.Wpn2.DamageMax" placeholder="Item Max">
+                                </div>
+                                <div class="field">
+                                    <label>Crit</label>
+                                    <div class="ui selection compact dropdown" data-path="Items.Wpn2.HasEnchantment">
+                                        <div class="text"></div>
+                                        <i class="dropdown icon"></i>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label>Rune</label>
+                                    <div class="ui selection compact dropdown" data-path="Items.Wpn2.AttributeTypes.2">
+                                        <div class="text"></div>
+                                        <i class="dropdown icon"></i>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label><br/></label>
+                                    <input class="text-center" type="text" data-path="Items.Wpn2.Attributes.2" placeholder="0 - 60">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bordered bfour">
+                            <div class="four fields">
+                                <div class="field">
+                                    <label>Armor</label>
+                                    <input class="text-center" type="text" data-path="Armor" placeholder="Armor points">
+                                </div>
+                                <div class="field">
+                                    <label>Fire</label>
+                                    <input class="text-center" type="text" data-path="Runes.ResistanceFire" placeholder="0 - 75">
+                                </div>
+                                <div class="field">
+                                    <label>Cold</label>
+                                    <input class="text-center" type="text" data-path="Runes.ResistanceCold" placeholder="0 - 75">
+                                </div>
+                                <div class="field">
+                                    <label>Lightning</label>
+                                    <input class="text-center" type="text" data-path="Runes.ResistanceLightning" placeholder="0 - 75">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bordered bfive">
+                            <div class="three fields">
+                                <div class="field">
+                                    <label>Portal Health</label>
+                                    <input class="text-center" type="text" data-path="Dungeons.Player" placeholder="0 - 50">
+                                </div>
+                                <div class="field">
+                                    <label>Rune Health</label>
+                                    <input class="text-center" type="text" data-path="Runes.Health" placeholder="0 - 15">
+                                </div>
+                                <div class="field">
+                                    <label>Life Potion</label>
+                                    <div class="ui selection compact dropdown" data-path="Potions.Life">
+                                        <div class="text"></div>
+                                        <i class="dropdown icon"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bordered bsix">
+                            <div class="three fields">
+                                <div class="field">
+                                    <label>Portal Damage</label>
+                                    <input class="text-center" type="text" data-path="Dungeons.Group" placeholder="0 - 50">
+                                </div>
+                                <div class="field">
+                                    <label>Gladiator (0 - 15)</label>
+                                    <input class="text-center" type="text" data-path="Fortress.Gladiator" placeholder="0 - 15">
+                                </div>
+                                <div class="field">
+                                    <label>Shadow of the Cowboy</label>
+                                    <div class="ui selection compact dropdown" data-path="Items.Hand.HasEnchantment">
+                                        <div class="text"></div>
+                                        <i class="dropdown icon"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Player list -->
+                <div class="column">
+                    <div class="ui grid">
+                        <div class="css-small-row row css-smaller-pad">
+                            <div class="four wide column">
+                                <button class="ui fluid small button" type="submit" id="sim-add"><i class="small arrow right icon"></i> Add</button>
+                            </div>
+                            <div class="four wide column">
+                                <button class="ui fluid small button" type="submit" id="sim-save">Save</button>
+                            </div>
+                            <div class="two wide column">
+                                <button class="ui small basic icon fluid button" data-position="bottom center" data-tooltip="DANGEROUS: Enable fight data dump" id="sim-debug"><i class="file code outline icon"></i></button>
+                            </div>
+                            <div class="two wide column">
+                                <button class="ui tiny basic icon fluid button" data-position="bottom center" data-tooltip="Toggle Add/Replace insertion mode" id="sim-insert"><i class="paste icon"></i></button>
+                            </div>
+                            <div class="four wide column">
+                                <div class="ui tiny basic icon fluid two buttons">
+                                    <button class="ui button" data-position="bottom center" data-tooltip="Copy current" id="sim-copy"><i class="outline copy icon"></i> 1</button>
+                                    <button class="ui button" data-position="bottom center" data-tooltip="Copy everyone" id="sim-copyall"><i class="copy icon"></i> All</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="css-small-row row css-smaller-pad">
+                            <div class="five wide column">
+                                <div class="ui small form">
+                                    <div class="two fields">
+                                        <div class="field" data-position="bottom center" data-tooltip="Simulator threads. Keep this number BELOW your processor core count!">
+                                            <input class="text-center fluid" type="text" id="sim-threads" value="4">
+                                        </div>
+                                        <div class="field" data-position="bottom center" data-tooltip="Amount of iterations per thread.">
+                                            <input class="text-center fluid" type="text" id="sim-iterations" value="2500">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="four wide column">
+                                <div class="ui small form">
+                                    <div class="field">
+                                        <div class="ui fluid selection compact dropdown" id="sim-mode">
+                                            <div class="text"></div>
+                                            <i class="dropdown icon"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="two wide column">
+                                <button class="ui small basic icon fluid button" data-position="bottom center" data-tooltip="IHOF Mode: Gladiator is set to 15 and is not reduced!" id="sim-ihof">IHOF</button>
+                            </div>
+                            <div class="five wide column">
+                                <button class="ui fluid small button" type="submit" id="sim-run">Simulate</button>
+                            </div>
+                        </div>
+                        <div class="row clickable selectable-header">
+                            <div class="two wide text-center column">
+                                <span data-sort="class">
+                                    Class
+                                </span>
+                            </div>
+                            <div class="two wide column">
+                                <span data-sort="level">
+                                    Level
+                                </span>
+                            </div>
+                            <div class="four wide column">
+                                <span data-sort="name">
+                                    Name
+                                </span>
+                            </div>
+                            <div class="two wide text-center column">
+                                <span data-sort="avg">
+                                    Win %
+                                </span>
+                            </div>
+                            <div class="two wide text-center column">
+                                <span data-sort="min">
+                                    Min %
+                                </span>
+                            </div>
+                            <div class="two wide text-center column">
+                                <span data-sort="max">
+                                    Max %
+                                </span>
+                            </div>
+                            <div class="one wide column">
+
+                            </div>
+                            <div class="one wide column">
+
+                            </div>
+                        </div>
+                        <div class="row padding-none">
+                            <div class="sixteen wide column">
+                                <hr/>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="sixteen wide column">
+                                <div class="ui middle aligned grid" id="sim-players">
+
+                                </div>
+                            </div>
+                        <div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script type="text/javascript">
+            function toggleAll (dis) {
+                if (dis) {
+                    $('.ui.main.container').addClass('frozen');
+                } else {
+                    $('.ui.main.container').removeClass('frozen');
+                }
+            }
+
+            const EditorController = new (class {
+                constructor () {
+                    this.fields = {
+                        name: new Field('[data-path="Name"]', ''),
+                        class: new Field('[data-path="Class"]', '1'),
+                        mask: new Field('[data-path="Mask"]', '0'),
+                        level: new Field('[data-path="Level"]', '', Field.isNumber),
+                        armor: new Field('[data-path="Armor"]', '', Field.isNumber),
+
+                        resistance_fire: new Field('[data-path="Runes.ResistanceFire"]', '', Field.isResistanceRune),
+                        resistance_cold: new Field('[data-path="Runes.ResistanceCold"]', '', Field.isResistanceRune),
+                        resistance_lightning: new Field('[data-path="Runes.ResistanceLightning"]', '', Field.isResistanceRune),
+
+                        portal_hp: new Field('[data-path="Dungeons.Player"]', '', Field.isDungeon),
+                        portal_damage: new Field('[data-path="Dungeons.Group"]', '', Field.isDungeon),
+
+                        runes_health: new Field('[data-path="Runes.Health"]', '', Field.isHealthRune),
+                        gladiator: new Field('[data-path="Fortress.Gladiator"]', '', Field.isGladiator),
+                        potion_life: new Field('[data-path="Potions.Life"]', '0'),
+                        enchantment: new Field('[data-path="Items.Hand.HasEnchantment"]', 'false'),
+
+                        str: new Field('[data-path="Strength.Total"]', '', Field.isNumber),
+                        dex: new Field('[data-path="Dexterity.Total"]', '', Field.isNumber),
+                        int: new Field('[data-path="Intelligence.Total"]', '', Field.isNumber),
+                        con: new Field('[data-path="Constitution.Total"]', '', Field.isNumber),
+                        lck: new Field('[data-path="Luck.Total"]', '', Field.isNumber),
+
+                        weapon1_min: new Field('[data-path="Items.Wpn1.DamageMin"]', '', Field.isNumber),
+                        weapon1_max: new Field('[data-path="Items.Wpn1.DamageMax"]', '', Field.isNumber),
+                        weapon1_enchantment: new Field('[data-path="Items.Wpn1.HasEnchantment"]', 'false'),
+                        weapon1_rune: new Field('[data-path="Items.Wpn1.AttributeTypes.2"]', '0'),
+                        weapon1_value: new Field('[data-path="Items.Wpn1.Attributes.2"]', '', Field.isDamageRune),
+
+                        weapon2_min: new Field('[data-path="Items.Wpn2.DamageMin"]', '', Field.isNumber),
+                        weapon2_max: new Field('[data-path="Items.Wpn2.DamageMax"]', '', Field.isNumber),
+                        weapon2_enchantment: new Field('[data-path="Items.Wpn2.HasEnchantment"]', 'false'),
+                        weapon2_rune: new Field('[data-path="Items.Wpn2.AttributeTypes.2"]', '0'),
+                        weapon2_value: new Field('[data-path="Items.Wpn2.Attributes.2"]', '', Field.isDamageRune)
+                    };
+
+                    this.fields['class'].$object.dropdown({
+                        preserveHTML: true,
+                        values: Object.entries(ClassMap).map((e) => {
+                            return {
+                                name: `<img class="ui centered image class-picture" src="res/class${ e[0] }.png"><span>${ e[1] }</span>`,
+                                value: e[0],
+                                disabled: !hasImplementation(e[0])
+                            };
+                        })
+                    }).dropdown('setting', 'onChange', (value, text) => {
+                        if (value == 4) {
+                            $('[data-optional="Weapon2"]').show();
+                        } else {
+                            $('[data-optional="Weapon2"]').hide();
+                        }
+
+                        this.fields['mask'].show(value == 8);
+                    }).dropdown('set selected', '1');
+
+                    this.fields['mask'].$object.dropdown({
+                        preserveHTML: true,
+                        values: [
+                            {
+                                name: 'None',
+                                value: 0
+                            },
+                            {
+                                name: '<img class="ui centered image class-picture" src="res/mask1.png"><span>Bear</span>',
+                                value: 1
+                            },
+                            {
+                                name: '<img class="ui centered image class-picture" src="res/mask2.png"><span>Cat</span>',
+                                value: 2
+                            }
+                        ]
+                    }).dropdown('set selected', '0');
+
+                    this.fields['potion_life'].$object.dropdown({
+                        values: [
+                            {
+                                name: 'No',
+                                value: 0
+                            },
+                            {
+                                name: 'Yes',
+                                value: 25
+                            }
+                        ]
+                    }).dropdown('set selected', '0');
+
+                    this.fields['weapon1_rune'].$object.dropdown({
+                        values: [
+                            {
+                                name: 'None',
+                                value: 0
+                            },
+                            {
+                                name: 'Fire',
+                                value: 40
+                            },
+                            {
+                                name: 'Cold',
+                                value: 41
+                            },
+                            {
+                                name: 'Lightning',
+                                value: 42
+                            }
+                        ]
+                    }).dropdown('set selected', '0');
+
+                    this.fields['weapon2_rune'].$object.dropdown({
+                        values: [
+                            {
+                                name: 'None',
+                                value: 0
+                            },
+                            {
+                                name: 'Fire',
+                                value: 40
+                            },
+                            {
+                                name: 'Cold',
+                                value: 41
+                            },
+                            {
+                                name: 'Lightning',
+                                value: 42
+                            }
+                        ]
+                    }).dropdown('set selected', '0');
+
+                    this.fields['enchantment'].$object.dropdown({
+                        values: [
+                            {
+                                name: 'No',
+                                value: false
+                            },
+                            {
+                                name: 'Yes',
+                                value: true
+                            }
+                        ]
+                    }).dropdown('set selected', 'false');
+
+                    this.fields['weapon1_enchantment'].$object.dropdown({
+                        values: [
+                            {
+                                name: 'No',
+                                value: false
+                            },
+                            {
+                                name: 'Yes',
+                                value: true
+                            }
+                        ]
+                    }).dropdown('set selected', 'false');
+
+                    this.fields['weapon2_enchantment'].$object.dropdown({
+                        values: [
+                            {
+                                name: 'No',
+                                value: false
+                            },
+                            {
+                                name: 'Yes',
+                                value: true
+                            }
+                        ]
+                    }).dropdown('set selected', 'false');
+                }
+
+                fill (object) {
+                    if (object) {
+                        for (var [key, field] of Object.entries(this.fields)) {
+                            field.set(getObjectAt(object, field.path()));
+                        }
+                    } else {
+                        for (var [key, field] of Object.entries(this.fields)) {
+                            field.clear();
+                        }
+                    }
+                }
+
+                clear () {
+                    for (var [key, field] of Object.entries(this.fields)) {
+                        field.clear();
+                    }
+                }
+
+                read () {
+                    var object = new SFPlayer();
+                    for (var [key, field] of Object.entries(this.fields)) {
+                        setObjectAt(object, field.path(), field.get());
+                    }
+
+                    return object;
+                }
+
+                valid () {
+                    var ass = this.fields['class'].get() != 4;
+                    for (var [key, field] of Object.entries(this.fields)) {
+                        if (ass && ['weapon2_min', 'weapon2_max', 'weapon2_value'].includes(key)) {
+                            continue;
+                        }
+
+                        if (!field.valid()) {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                }
+
+                empty () {
+                    var object = new SFPlayer();
+                    for (var [key, field] of Object.entries(this.fields)) {
+                        setObjectAt(object, field.path(), field.defaultValue);
+                    }
+
+                    return object;
+                }
+            })();
+
+            EditorController.clear();
+
+            const Logger = new (class {
+                constructor ($root) {
+                    this.$root = $root;
+                }
+
+                clear () {
+                    this.$root.html('');
+                }
+
+                append (line) {
+                    this.$root.append(`${ line }</br>`);
+                }
+            })($('.debug'));
+
+            var selected = -1;
+            var yourself = -1;
+
+            var players = [];
+            var iterator = 0;
+
+            var modeIhof = false;
+            $('#sim-ihof').click(function () {
+                modeIhof = !modeIhof;
+                if (modeIhof) {
+                    this.style.setProperty('background', '#21ba45', 'important');
+                } else {
+                    this.style.setProperty('background', '');
+                }
+                $('.sim-player-name, .sim-player-name-ihof').toggleClass('sim-player-name').toggleClass('sim-player-name-ihof');
+            });
+
+            var modeDump = false;
+            $('#sim-debug').click(function () {
+                modeDump = !modeDump;
+                if (modeDump) {
+                    this.style.setProperty('background', '#eb8034', 'important');
+                } else {
+                    this.style.setProperty('background', '');
+                }
+            });
+
+            var modeInsert = false;
+            $('#sim-insert').click(function () {
+                modeInsert = !modeInsert;
+                if (modeInsert) {
+                    this.style.setProperty('background', '#21ba45', 'important');
+                } else {
+                    this.style.setProperty('background', '');
+                }
+            });
+
+            var mode = 0;
+            $('#sim-mode').dropdown({
+                values: [
+                    {
+                        name: 'All vs All',
+                        value: 0
+                    },
+                    {
+                        name: 'One vs All',
+                        value: 1
+                    },
+                    {
+                        name: 'Tournament',
+                        value: 2
+                    }
+                ]
+            }).dropdown('setting', 'onChange', (value, text) => {
+                mode = Number(value);
+
+                for (var p of players) {
+                    p.score = null;
+                }
+
+                yourself = -1;
+                clearSort();
+            }).dropdown('set selected', '0')
+
+            $('#sim-editor input').on('paste', function (event) {
+                event.stopPropagation();
+            });
+
+            $(document.body).on('paste', function (event) {
+                try {
+                    var data = JSON.parse(event.originalEvent.clipboardData.getData('text'));
+                    if (Array.isArray(data)) {
+                        if (!modeInsert) {
+                            players = [];
+                        }
+
+                        for (var d of data) {
+                            if (d.Class) {
+                                SFItem.forceCorrectRune(d.Items.Wpn1);
+                                SFItem.forceCorrectRune(d.Items.Wpn2);
+
+                                if (d.Class != 4) {
+                                    d.Items.Wpn2 = SFItem.empty();
+                                }
+
+                                players.push({
+                                    player: mergeSoft(new SFPlayer(), d),
+                                    score: null,
+                                    index: iterator++
+                                });
+                            } else {
+                                var obj = d.own ? new SFOwnPlayer(d) : new SFOtherPlayer(d);
+
+                                SFItem.forceCorrectRune(obj.Items.Wpn1);
+                                SFItem.forceCorrectRune(obj.Items.Wpn2);
+
+                                if (obj.Class != 4) {
+                                    obj.Items.Wpn2 = SFItem.empty();
+                                }
+
+                                players.push({
+                                    player: mergeSoft(new SFPlayer(), obj),
+                                    score: null,
+                                    index: iterator++
+                                });
+                            }
+                        }
+
+                        showPlayers();
+                    } else if (data.Class || data.save) {
+                        var obj = data.Class ? data : (data.own ? new SFOwnPlayer(data) : new SFOtherPlayer(data));
+
+                        SFItem.forceCorrectRune(obj.Items.Wpn1);
+                        SFItem.forceCorrectRune(obj.Items.Wpn2);
+
+                        if (obj.Class != 4) {
+                            obj.Items.Wpn2 = SFItem.empty();
+                        }
+
+                        EditorController.fill(obj);
+                    }
+                } catch (e) {
+                    console.info(e);
+                }
+            });
+
+            $('#sim-threads').captiveInputField('player_sim/threads', 4, v => !isNaN(v) && v >= 1);
+            $('#sim-iterations').captiveInputField('player_sim/iterations', 2500, v => !isNaN(v) && v >= 1);
+
+            // Run simulation
+            $('#sim-run').click(function () {
+                if (players.length > 1 && (mode != 1 || (mode == 1 && players.find(p => p.index == yourself)))) {
+                    Logger.clear();
+
+                    for (var i = 0; i < players.length; i++) {
+                        players[i].score = null;
+                        players[i].player.IHOFMode = modeIhof;
+                    }
+
+                    showPlayers();
+                    toggleAll(true);
+
+                    let blocks = Math.max(1, Number($('#sim-threads').val()) || 4);
+                    let blockSize = Math.ceil(players.length / blocks);
+                    let iterations = Math.max(1, Number($('#sim-iterations').val()) || 2500);
+
+                    var results = [];
+                    var ladder = [];
+                    var logs = [];
+
+                    if (mode == 2) {
+                        Logger.append(`GENERATING LADDER`);
+
+                        ladder = [ ... players ];
+                        new FightSimulator().simulateMultiple(ladder, ladder, 100);
+
+                        ladder.sort((a, b) => a.score.avg - b.score.avg);
+
+                        for (var i = 0; i < ladder.length; i++) {
+                            ladder[i].score = null;
+                        }
+                    }
+
+                    Logger.append(`BLOCK SIZE: <b>${ blockSize }</b>`);
+                    Logger.append(`ITERATIONS: <b><b>${ iterations }</b>`);
+                    Logger.append(`<b><br/>STARTING ${ blocks } THREADS</b>`);
+
+                    for (var i = 0; i < players.length; i += blockSize) {
+                        var block = players.slice(i, i + blockSize);
+                        var worker = createWebWorker('js/sim/players.js');
+
+                        worker.addEventListener('message', function (message) {
+                            if (message.data.command == 'finished') {
+                                results.push(... message.data.results);
+
+                                if (modeDump) {
+                                    logs.push(... message.data.logs);
+                                }
+
+                                Logger.append(`THREAD FINISHED IN <b>${ message.data.time / 1000 }</b> SECONDS`);
+
+                                if (results.length == players.length) {
+                                    toggleAll();
+
+                                    players = results;
+                                    setSort('avg', 0);
+
+                                    if (modeDump) {
+                                        download('logs.json', new Blob([ JSON.stringify(logs) ], {
+                                            type: 'application/json'
+                                        }));
+                                    }
+                                }
+                            }
+                        }, false);
+
+                        if (mode == 0) {
+                            worker.postMessage({
+                                mode: SimulatorType.PlayerAll,
+                                player: block,
+                                players: players,
+                                iterations: iterations,
+                                dev: modeDump
+                            });
+                        } else if (mode == 1) {
+                            worker.postMessage({
+                                mode: SimulatorType.PlayerOne,
+                                player: players.find(p => p.index == yourself),
+                                players: block,
+                                iterations: iterations,
+                                dev: modeDump
+                            });
+                        } else if (mode == 2) {
+                            worker.postMessage({
+                                mode: SimulatorType.PlayerTournament,
+                                player: block,
+                                players: ladder,
+                                iterations: iterations,
+                                dev: modeDump
+                            });
+                        }
+                    }
+                }
+            });
+
+            $('#sim-save').click(function () {
+                if (EditorController.valid()) {
+                    if (selected != -1) {
+                        var index = players.findIndex(p => p.index == selected);
+                        if (index != -1) {
+                            players[index].player = EditorController.read();
+                            players[index].score = null;
+                        }
+
+                        showPlayers();
+                    } else {
+                        $('#sim-add').trigger('click');
+                    }
+                }
+            });
+
+            $('#sim-copy').click(function () {
+                copyText(JSON.stringify(EditorController.read()));
+            });
+
+            $('#sim-copyall').click(function () {
+                copyText(JSON.stringify(players.map(p => toSimulatorModel(p.player))));
+            });
+
+            $('#sim-add').click(function () {
+                if (EditorController.valid()) {
+                    var player = EditorController.read();
+                    if (player.Name == '') {
+                        player.Name = `Player ${ players.length + 1 }`;
+                    }
+
+                    selected = iterator++;
+                    players.push({
+                        player: player,
+                        score: null,
+                        index: selected
+                    });
+
+                    EditorController.clear();
+
+                    showPlayers();
+                }
+            });
+
+            var sort = '';
+            var order = 0;
+
+            $('[data-sort]').click(function () {
+                setSort($(this).attr('data-sort'));
+            });
+
+            function setSort (key, ord) {
+                if (ord == undefined) {
+                    if (sort == key) {
+                        order = (order + 1) % 2;
+                    } else {
+                        sort = key;
+                        order = 0;
+                    }
+                } else {
+                    sort = key;
+                    order = ord;
+                }
+
+                showPlayers();
+            }
+
+            function clearSort () {
+                sort = '';
+                order = 0;
+
+                showPlayers();
+            }
+
+            function showPlayers () {
+                if (order == 0) {
+                    if (sort == 'class') {
+                        players.sort((a, b) => a.player.Class - b.player.Class);
+                    } else if (sort == 'level') {
+                        players.sort((a, b) => b.player.Level - a.player.Level);
+                    } else if (sort == 'name') {
+                        players.sort((a, b) => a.player.Name.localeCompare(b.player.Name));
+                    } else if (sort == 'avg') {
+                        players.sort((a, b) => b.score && a.score && (b.score.avg - a.score.avg));
+                    } else if (sort == 'min') {
+                        players.sort((a, b) => b.score && a.score && (b.score.min - a.score.min));
+                    } else if (sort == 'max') {
+                        players.sort((a, b) => b.score && a.score && (b.score.max - a.score.max));
+                    }
+                } else {
+                    if (sort == 'class') {
+                        players.sort((b, a) => a.player.Class - b.player.Class);
+                    } else if (sort == 'level') {
+                        players.sort((b, a) => b.player.Level - a.player.Level);
+                    } else if (sort == 'name') {
+                        players.sort((b, a) => a.player.Name.localeCompare(b.player.Name));
+                    } else if (sort == 'avg') {
+                        players.sort((b, a) => b.score && a.score && (b.score.avg - a.score.avg));
+                    } else if (sort == 'min') {
+                        players.sort((b, a) => b.score && a.score && (b.score.min - a.score.min));
+                    } else if (sort == 'max') {
+                        players.sort((b, a) => b.score && a.score && (b.score.max - a.score.max));
+                    }
+                }
+
+                $('[data-sort]').each(function () {
+                    $(this).attr('data-sort-style', $(this).attr('data-sort') == sort ? (order + 1) : 0);
+                });
+
+                var content = '';
+
+                if (mode == 1 && yourself == -1) {
+                    if (players.length) {
+                        yourself = players[0].index;
+                    }
+                }
+
+                if (mode > 0) {
+                    $('[data-sort="min"]').hide();
+                    if (mode == 1) {
+                        $('[data-sort="max"]').hide();
+                    } else {
+                        $('[data-sort="max"]').show();
+                    }
+                } else {
+                    $('[data-sort="min"]').show();
+                    $('[data-sort="max"]').show();
+                }
+
+                if (mode == 2) {
+                    $('[data-sort="max"]').text('Ladder');
+                } else {
+                    $('[data-sort="max"]').text('Max %');
+                }
+
+                for (var i = 0; i < players.length; i++) {
+                    var player = players[i].player;
+                    var score = players[i].score;
+                    var index = players[i].index;
+
+                    content += `
+                        <div class="row selectable ${ index == selected ? 'selected' : 'nselected' } ${ mode == 1 && index == yourself ? 'btwo' : 'bnone' }" data-index="${ index }">
+                            <div class="player-index">${ i + 1 }</div>
+                            <div class="two wide text-center column">
+                                <img class="ui medium centered image" style="width: 50px;" src="res/class${ player.Class }.png">
+                                ${ player.Class == 8 && player.Mask > 0 ? `<img class="ui image" src="res/mask${ player.Mask }.png" style="position: absolute; right: 0.75em; bottom: 0.1em; width: 1.55em; height: 1.55em;">` : '' }
+                            </div>
+                            <div class="one wide text-center column">
+                                <b>${ player.Level }</b>
+                            </div>
+                            <div class="one wide column"></div>
+                            <div class="four wide column sim-player-name${ modeIhof && player.Prefix ? '-ihof' : '' }">
+                                <b>${ player.Name }</b>
+                                <span>${ player.Prefix }</span>
+                            </div>
+                            <div class="two wide text-center column">
+                                ${ score ? (mode == 2 ? `${ score.avg } pt` : (mode == 1 && index == yourself ? '' : `${ score.avg.toFixed(2) }%`)) : '' }
+                            </div>
+                            <div class="two wide text-center column">
+                                ${ score && score.min != undefined ? `${ score.min.toFixed(2) }%` : '' }
+                            </div>
+                            <div class="two wide text-center column">
+                                ${ score && score.max != undefined ? (mode == 2 ? `${ score.max }` : `${ score.max.toFixed(2) }%`) : '' }
+                            </div>
+                            <div class="one wide text-center column">
+                                ${ mode == 1 && index != yourself ? `<i class="user circle icon glow-y" data-index-crown="${ i }"></i>` : ''}
+                            </div>
+                            <div class="one wide text-center column">
+                                <i class="trash right aligned alternate glow outline icon" data-index-trash="${ i }"></i>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                $('#sim-players').html(content);
+
+                $('[data-index]').click(function () {
+                    selected = Number($(this).attr('data-index'));
+                    EditorController.fill(players.find(p => p.index == selected).player);
+
+                    showPlayers();
+                });
+
+                $('[data-index-crown]').click(function () {
+                    yourself = players[Number($(this).attr('data-index-crown'))].index;
+
+                    showPlayers();
+                });
+
+                $('[data-index-trash]').click(function () {
+                    var sel = Number($(this).attr('data-index-trash'));
+                    players.splice(sel, 1);
+
+                    var ss = players.findIndex(p => p.index == selected);
+                    if (ss == -1) {
+                        EditorController.clear();
+                    }
+
+                    selected = ss;
+
+                    var sx = players.findIndex(p => p.index == yourself);
+                    if (sx == -1) {
+                        yourself = -1;
+                    }
+
+                    showPlayers();
+                });
+            }
+        </script>
+    </body>
+</html>

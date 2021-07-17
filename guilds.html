@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>SFTools - Guild Simulator</title>
+
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="icon" type="image/png" href="res/favicon.png"/>
+
+        <link rel="stylesheet" href="vendor/css/semantic.min.css"/>
+        <link rel="stylesheet" href="css/style.css"/>
+
+        <script src="vendor/js/jquery.3.4.1.min.js"></script>
+        <script src="vendor/js/semantic.min.js"></script>
+
+        <script src="js/enum.js"></script>
+        <script src="js/util.js"></script>
+
+        <script src="js/plugins.js"></script>
+
+        <script src="js/core/playa.js"></script>
+        <script src="js/sim/players.js"></script>
+
+        <link href="https://fonts.googleapis.com/css?family=Roboto:300&display=swap" rel="stylesheet">
+
+        <style>
+            .bordered .fields:last-of-type {
+                margin-bottom: 0;
+            }
+
+            .bordered {
+                padding: 0.5em;
+                margin-bottom: 0.5em;
+            }
+
+            .bordered-simple {
+                margin-bottom: 0.35em;
+                padding-top: 0.5em !important;
+                padding-bottom: 0.5em !important;
+                margin-right: 1em;
+                margin-left: 1em;
+            }
+
+            .player-index {
+                position: absolute;
+                font-size: 90%;
+                opacity: 50%;
+                left: 0em;
+                top: 1.5em;
+            }
+
+            .bnone {
+                border: 1px solid transparent;
+            }
+
+            .bone {
+                border: 1px solid orange;
+            }
+
+            .btwo {
+                border: 1px solid purple;
+            }
+
+            .bthree {
+                border: 1px solid blue;
+            }
+
+            .bfour {
+                border: 1px solid red;
+            }
+
+            .bfive {
+                border: 1px solid green;
+            }
+
+            .bsix {
+                border: 1px solid pink;
+            }
+
+            .spaced {
+                margin-top: 2em !important;
+            }
+
+            .selectable {
+                -moz-user-select: -moz-none;
+                -khtml-user-select: none;
+                -webkit-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
+                padding-bottom: 0.25em !important;
+                padding-top: 0.25em !important;
+                height: 4em;
+            }
+
+            .selectable div {
+                padding: 0 !important;
+            }
+
+            .selectable-header div {
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+            }
+
+            .selected {
+                background-color: rgba(0, 0, 0, 0.1);
+                cursor: pointer;
+            }
+
+            .nselected {
+                cursor: pointer;
+            }
+
+            .inactive {
+                opacity: 50%;
+            }
+
+            #sim-players1, #sim-players2 {
+                min-height: 30em;
+                align-content: flex-start;
+            }
+
+            .class-picture {
+                 margin-left: -0.75em !important;
+                 margin-right: 0.5em !important;
+            }
+
+            .class-none {
+                margin-left: 1.75em;
+            }
+        </style>
+    </head>
+    <body class="margin-none-bottom">
+        <div class="ui fixed borderless huge menu css-menu">
+            <div class="header item"><a class="css-a-blank" href="index.html">SFTools</a></div>
+            <div class="right menu">
+                <a class="item" href="index.html"><i class="small reply icon"></i><span class="css-small">Go back</span></a>
+            </div>
+        </div>
+
+        <div class="ui main container">
+            <!-- Header -->
+            <div class="ui five columns middle aligned grid">
+                <div class="five wide column"></div>
+                <div class="six wide column">
+                    <h1 class="ui centered header">Guild Battle Simulator</h1>
+                </div>
+                <div class="five wide column"></div>
+            </div>
+            <div class="ui two columns grid">
+                <!-- Player edit field -->
+                <div class="column">
+                    <div class="ui form" id="sim-editor">
+                        <div class="bordered bone">
+                            <div class="field">
+                                <label>Name</label>
+                                <input class="text-center" type="text" data-path="Name">
+                            </div>
+                            <div class="two fields">
+                                <div class="field">
+                                    <label>Class</label>
+                                    <div class="ui selection compact dropdown" data-path="Class">
+                                        <div class="text"></div>
+                                        <i class="dropdown icon"></i>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label>Mask</label>
+                                    <div class="ui selection compact dropdown" data-path="Mask">
+                                        <div class="text"></div>
+                                        <i class="dropdown icon"></i>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label>Level</label>
+                                    <input class="text-center" type="text" data-path="Level">
+                                </div>
+                            </div>
+                            <div class="five fields">
+                                <div class="field">
+                                    <label>Str</label>
+                                    <input class="text-center" type="text" data-path="Strength.Total">
+                                </div>
+                                <div class="field">
+                                    <label>Dex</label>
+                                    <input class="text-center" type="text" data-path="Dexterity.Total">
+                                </div>
+                                <div class="field">
+                                    <label>Int</label>
+                                    <input class="text-center" type="text" data-path="Intelligence.Total">
+                                </div>
+                                <div class="field">
+                                    <label>Con</label>
+                                    <input class="text-center" type="text" data-path="Constitution.Total">
+                                </div>
+                                <div class="field">
+                                    <label>Lck</label>
+                                    <input class="text-center" type="text" data-path="Luck.Total">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bordered btwo">
+                            <div class="five fields">
+                                <div class="field">
+                                    <label>Min</label>
+                                    <input class="text-center" type="text" data-path="Items.Wpn1.DamageMin" placeholder="Item Min">
+                                </div>
+                                <div class="field">
+                                    <label>Max</label>
+                                    <input class="text-center" type="text" data-path="Items.Wpn1.DamageMax" placeholder="Item Max">
+                                </div>
+                                <div class="field">
+                                    <label>Crit</label>
+                                    <div class="ui selection compact dropdown" data-path="Items.Wpn1.HasEnchantment">
+                                        <div class="text"></div>
+                                        <i class="dropdown icon"></i>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label>Rune</label>
+                                    <div class="ui selection compact dropdown" data-path="Items.Wpn1.AttributeTypes.2">
+                                        <div class="text"></div>
+                                        <i class="dropdown icon"></i>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label><br/></label>
+                                    <input class="text-center" type="text" data-path="Items.Wpn1.Attributes.2" placeholder="0 - 60">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bordered bthree" data-optional="Weapon2">
+                            <div class="five fields">
+                                <div class="field">
+                                    <label>Min</label>
+                                    <input class="text-center" type="text" data-path="Items.Wpn2.DamageMin" placeholder="Item Min">
+                                </div>
+                                <div class="field">
+                                    <label>Max</label>
+                                    <input class="text-center" type="text" data-path="Items.Wpn2.DamageMax" placeholder="Item Max">
+                                </div>
+                                <div class="field">
+                                    <label>Crit</label>
+                                    <div class="ui selection compact dropdown" data-path="Items.Wpn2.HasEnchantment">
+                                        <div class="text"></div>
+                                        <i class="dropdown icon"></i>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label>Rune</label>
+                                    <div class="ui selection compact dropdown" data-path="Items.Wpn2.AttributeTypes.2">
+                                        <div class="text"></div>
+                                        <i class="dropdown icon"></i>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label><br/></label>
+                                    <input class="text-center" type="text" data-path="Items.Wpn2.Attributes.2" placeholder="0 - 60">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bordered bfour">
+                            <div class="four fields">
+                                <div class="field">
+                                    <label>Armor</label>
+                                    <input class="text-center" type="text" data-path="Armor" placeholder="Armor points">
+                                </div>
+                                <div class="field">
+                                    <label>Fire</label>
+                                    <input class="text-center" type="text" data-path="Runes.ResistanceFire" placeholder="0 - 75">
+                                </div>
+                                <div class="field">
+                                    <label>Cold</label>
+                                    <input class="text-center" type="text" data-path="Runes.ResistanceCold" placeholder="0 - 75">
+                                </div>
+                                <div class="field">
+                                    <label>Lightning</label>
+                                    <input class="text-center" type="text" data-path="Runes.ResistanceLightning" placeholder="0 - 75">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bordered bfive">
+                            <div class="three fields">
+                                <div class="field">
+                                    <label>Portal Health</label>
+                                    <input class="text-center" type="text" data-path="Dungeons.Player" placeholder="0 - 50">
+                                </div>
+                                <div class="field">
+                                    <label>Rune Health</label>
+                                    <input class="text-center" type="text" data-path="Runes.Health" placeholder="0 - 15">
+                                </div>
+                                <div class="field">
+                                    <label>Life Potion</label>
+                                    <div class="ui selection compact dropdown" data-path="Potions.Life">
+                                        <div class="text"></div>
+                                        <i class="dropdown icon"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bordered bsix">
+                            <div class="three fields">
+                                <div class="field">
+                                    <label>Portal Damage</label>
+                                    <input class="text-center" type="text" data-path="Dungeons.Group" placeholder="0 - 50">
+                                </div>
+                                <div class="field">
+                                    <label>Gladiator (0 - 15)</label>
+                                    <input class="text-center" type="text" data-path="Fortress.Gladiator" placeholder="0 - 15">
+                                </div>
+                                <div class="field">
+                                    <label>Shadow of the Cowboy</label>
+                                    <div class="ui selection compact dropdown" data-path="Items.Hand.HasEnchantment">
+                                        <div class="text"></div>
+                                        <i class="dropdown icon"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Player list -->
+                <div class="column">
+                    <div class="ui grid">
+                        <div class="css-small-row row">
+                            <div class="four wide column">
+                                <button class="ui fluid basic icon button" data-position="bottom center" data-tooltip="Copy current" id="sim-copy"><i class="outline copy icon"></i> 1</button>
+                            </div>
+                            <div class="twelve wide column">
+                                Right click on a player to mark him as inactive<br/>(Reduces health to 50%)
+                            </div>
+                        </div>
+                        <div class="css-small-row row">
+                            <div class="four wide column">
+                                <button class="ui fluid button" type="submit" id="sim-save">Save</button>
+                            </div>
+                            <div class="four wide column">
+                                <div class="ui small form">
+                                    <div class="field" data-tooltip="Amount of threads. Using more threads will improve the accuracy. Each thread equals to 5000 iterations.">
+                                        <input class="text-center fluid" type="text" id="sim-threads" value="4">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="four wide column">
+                                <button class="ui fluid button" type="submit" id="sim-run">Simulate</button>
+                            </div>
+                            <div class="four wide column">
+                                <div class="ui small form">
+                                    <input class="text-center fluid" disabled type="text" id="sim-results" value="">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row middle aligned">
+                            <div class="two wide column">
+                                <button class="ui tiny basic icon button" type="submit" id="sim-add1" data-position="bottom center" data-tooltip="Add to guild A"><i class="arrow right icon"></i></button>
+                            </div>
+                            <div class="four wide column">
+                                <h3 class="ui text-center header">Guild A</h3>
+                            </div>
+                            <div class="two wide column">
+                                <button class="ui tiny basic icon button" data-position="bottom center" data-tooltip="Copy" id="sim-copyall1"><i class="copy icon"></i></button>
+                            </div>
+                            <div class="two wide column">
+                                <button class="ui tiny basic icon button" type="submit" id="sim-add2" data-position="bottom center" data-tooltip="Add to guild B"><i class="arrow right icon"></i></button>
+                            </div>
+                            <div class="four wide column">
+                                <h3 class="ui text-center header">Guild B</h3>
+                            </div>
+                            <div class="two wide column">
+                                <button class="ui tiny basic icon button" data-position="bottom center" data-tooltip="Copy" id="sim-copyall2"><i class="copy icon"></i></button>
+                            </div>
+                        </div>
+                        <div class="row padding-none">
+                            <div class="two wide text-center column">
+                                Class
+                            </div>
+                            <div class="two wide column">
+                                Level
+                            </div>
+                            <div class="three wide column">
+                                Name
+                            </div>
+                            <div class="one wide column">
+
+                            </div>
+                            <div class="two wide text-center column">
+                                Class
+                            </div>
+                            <div class="two wide column">
+                                Level
+                            </div>
+                            <div class="three wide column">
+                                Name
+                            </div>
+                            <div class="one wide column">
+
+                            </div>
+                        </div>
+                        <div class="row padding-none">
+                            <div class="sixteen wide column">
+                                <hr/>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="eight wide column">
+                                <div class="ui middle aligned grid" id="sim-players1">
+
+                                </div>
+                            </div>
+                            <div class="eight wide column">
+                                <div class="ui middle aligned grid" id="sim-players2">
+
+                                </div>
+                            </div>
+                        <div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script type="text/javascript">
+            function toggleAll (dis) {
+                if (dis) {
+                    $('.ui.main.container').addClass('frozen');
+                } else {
+                    $('.ui.main.container').removeClass('frozen');
+                }
+            }
+
+            $('#sim-threads').captiveInputField('guild_sim/threads', 4, v => !isNaN(v) && v >= 1);
+
+            const EditorController = new (class {
+                constructor () {
+                    this.fields = {
+                        name: new Field('[data-path="Name"]', ''),
+                        class: new Field('[data-path="Class"]', '1'),
+                        mask: new Field('[data-path="Mask"]', '0'),
+                        level: new Field('[data-path="Level"]', '', Field.isNumber),
+                        armor: new Field('[data-path="Armor"]', '', Field.isNumber),
+
+                        resistance_fire: new Field('[data-path="Runes.ResistanceFire"]', '', Field.isResistanceRune),
+                        resistance_cold: new Field('[data-path="Runes.ResistanceCold"]', '', Field.isResistanceRune),
+                        resistance_lightning: new Field('[data-path="Runes.ResistanceLightning"]', '', Field.isResistanceRune),
+
+                        portal_hp: new Field('[data-path="Dungeons.Player"]', '', Field.isDungeon),
+                        portal_damage: new Field('[data-path="Dungeons.Group"]', '', Field.isDungeon),
+
+                        runes_health: new Field('[data-path="Runes.Health"]', '', Field.isHealthRune),
+                        gladiator: new Field('[data-path="Fortress.Gladiator"]', '', Field.isGladiator),
+                        potion_life: new Field('[data-path="Potions.Life"]', '0'),
+                        enchantment: new Field('[data-path="Items.Hand.HasEnchantment"]', 'false'),
+
+                        str: new Field('[data-path="Strength.Total"]', '', Field.isNumber),
+                        dex: new Field('[data-path="Dexterity.Total"]', '', Field.isNumber),
+                        int: new Field('[data-path="Intelligence.Total"]', '', Field.isNumber),
+                        con: new Field('[data-path="Constitution.Total"]', '', Field.isNumber),
+                        lck: new Field('[data-path="Luck.Total"]', '', Field.isNumber),
+
+                        weapon1_min: new Field('[data-path="Items.Wpn1.DamageMin"]', '', Field.isNumber),
+                        weapon1_max: new Field('[data-path="Items.Wpn1.DamageMax"]', '', Field.isNumber),
+                        weapon1_enchantment: new Field('[data-path="Items.Wpn1.HasEnchantment"]', 'false'),
+                        weapon1_rune: new Field('[data-path="Items.Wpn1.AttributeTypes.2"]', '0'),
+                        weapon1_value: new Field('[data-path="Items.Wpn1.Attributes.2"]', '', Field.isDamageRune),
+
+                        weapon2_min: new Field('[data-path="Items.Wpn2.DamageMin"]', '', Field.isNumber),
+                        weapon2_max: new Field('[data-path="Items.Wpn2.DamageMax"]', '', Field.isNumber),
+                        weapon2_enchantment: new Field('[data-path="Items.Wpn2.HasEnchantment"]', 'false'),
+                        weapon2_rune: new Field('[data-path="Items.Wpn2.AttributeTypes.2"]', '0'),
+                        weapon2_value: new Field('[data-path="Items.Wpn2.Attributes.2"]', '', Field.isDamageRune)
+                    };
+
+                    this.fields['class'].$object.dropdown({
+                        preserveHTML: true,
+                        values: Object.entries(ClassMap).map((e) => {
+                            return {
+                                name: `<img class="ui centered image class-picture" src="res/class${ e[0] }.png"><span>${ e[1] }</span>`,
+                                value: e[0],
+                                disabled: !hasImplementation(e[0])
+                            };
+                        })
+                    }).dropdown('setting', 'onChange', (value, text) => {
+                        if (value == 4) {
+                            $('[data-optional="Weapon2"]').show();
+                        } else {
+                            $('[data-optional="Weapon2"]').hide();
+                        }
+
+                        this.fields['mask'].show(value == 8);
+                    }).dropdown('set selected', '1');
+
+                    this.fields['mask'].$object.dropdown({
+                        preserveHTML: true,
+                        values: [
+                            {
+                                name: 'None',
+                                value: 0
+                            },
+                            {
+                                name: '<img class="ui centered image class-picture" src="res/mask1.png"><span>Bear</span>',
+                                value: 1
+                            },
+                            {
+                                name: '<img class="ui centered image class-picture" src="res/mask2.png"><span>Cat</span>',
+                                value: 2
+                            }
+                        ]
+                    }).dropdown('set selected', '0');
+
+                    this.fields['potion_life'].$object.dropdown({
+                        values: [
+                            {
+                                name: 'No',
+                                value: 0
+                            },
+                            {
+                                name: 'Yes',
+                                value: 25
+                            }
+                        ]
+                    }).dropdown('set selected', '0');
+
+                    this.fields['weapon1_rune'].$object.dropdown({
+                        values: [
+                            {
+                                name: 'None',
+                                value: 0
+                            },
+                            {
+                                name: 'Fire',
+                                value: 40
+                            },
+                            {
+                                name: 'Cold',
+                                value: 41
+                            },
+                            {
+                                name: 'Lightning',
+                                value: 42
+                            }
+                        ]
+                    }).dropdown('set selected', '0');
+
+                    this.fields['weapon2_rune'].$object.dropdown({
+                        values: [
+                            {
+                                name: 'None',
+                                value: 0
+                            },
+                            {
+                                name: 'Fire',
+                                value: 40
+                            },
+                            {
+                                name: 'Cold',
+                                value: 41
+                            },
+                            {
+                                name: 'Lightning',
+                                value: 42
+                            }
+                        ]
+                    }).dropdown('set selected', '0');
+
+                    this.fields['enchantment'].$object.dropdown({
+                        values: [
+                            {
+                                name: 'No',
+                                value: false
+                            },
+                            {
+                                name: 'Yes',
+                                value: true
+                            }
+                        ]
+                    }).dropdown('set selected', 'false');
+
+                    this.fields['weapon1_enchantment'].$object.dropdown({
+                        values: [
+                            {
+                                name: 'No',
+                                value: false
+                            },
+                            {
+                                name: 'Yes',
+                                value: true
+                            }
+                        ]
+                    }).dropdown('set selected', 'false');
+
+                    this.fields['weapon2_enchantment'].$object.dropdown({
+                        values: [
+                            {
+                                name: 'No',
+                                value: false
+                            },
+                            {
+                                name: 'Yes',
+                                value: true
+                            }
+                        ]
+                    }).dropdown('set selected', 'false');
+                }
+
+                fill (object) {
+                    if (object) {
+                        for (var [key, field] of Object.entries(this.fields)) {
+                            field.set(getObjectAt(object, field.path()));
+                        }
+                    } else {
+                        for (var [key, field] of Object.entries(this.fields)) {
+                            field.clear();
+                        }
+                    }
+                }
+
+                clear () {
+                    for (var [key, field] of Object.entries(this.fields)) {
+                        field.clear();
+                    }
+                }
+
+                read () {
+                    var object = new SFPlayer();
+                    for (var [key, field] of Object.entries(this.fields)) {
+                        setObjectAt(object, field.path(), field.get());
+                    }
+
+                    return object;
+                }
+
+                valid () {
+                    var ass = this.fields['class'].get() != 4;
+                    for (var [key, field] of Object.entries(this.fields)) {
+                        if (ass && ['weapon2_min', 'weapon2_max', 'weapon2_value'].includes(key)) {
+                            continue;
+                        }
+
+                        if (!field.valid()) {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                }
+
+                empty () {
+                    var object = new SFPlayer();
+                    for (var [key, field] of Object.entries(this.fields)) {
+                        setObjectAt(object, field.path(), field.defaultValue);
+                    }
+
+                    return object;
+                }
+            })();
+
+            EditorController.clear();
+
+            $('#sim-editor input').on('paste', function (event) {
+                event.stopPropagation();
+            });
+
+            var players1 = [];
+            var players2 = [];
+
+            var selected = -1;
+            var iterator = 0;
+
+            var pasteTarget = 0;
+
+            $(document.body).on('paste', event => handlePasteEvent(event, pasteTarget));
+
+            $('#sim-players1').on('click', () => {
+                pasteTarget = 0;
+            });
+
+            $('#sim-players2').on('click', () => {
+                pasteTarget = 1;
+            });
+
+            function handlePasteEvent (event, id) {
+                try {
+                    var data = JSON.parse(event.originalEvent.clipboardData.getData('text'));
+                    if (Array.isArray(data)) {
+                        if (id == 0) {
+                            players1 = [];
+                        } else {
+                            players2 = [];
+                        }
+
+                        var players = id == 0 ? players1 : players2;
+
+                        for (var d of data) {
+                            if (d.Class) {
+                                SFItem.forceCorrectRune(d.Items.Wpn1);
+                                SFItem.forceCorrectRune(d.Items.Wpn2);
+
+                                if (d.Class != 4) {
+                                    d.Items.Wpn2 = SFItem.empty();
+                                }
+
+                                players.push({
+                                    player: mergeSoft(new SFPlayer(), d),
+                                    index: iterator++
+                                });
+                            } else {
+                                var obj = d.own ? new SFOwnPlayer(d) : new SFOtherPlayer(d);
+
+                                SFItem.forceCorrectRune(obj.Items.Wpn1);
+                                SFItem.forceCorrectRune(obj.Items.Wpn2);
+
+                                if (obj.Class != 4) {
+                                    obj.Items.Wpn2 = SFItem.empty();
+                                }
+
+                                players.push({
+                                    player: mergeSoft(new SFPlayer(), obj),
+                                    index: iterator++
+                                });
+                            }
+                        }
+
+                        show();
+                    } else if (data.Class || data.save) {
+                        var obj = data.Class ? data : (data.own ? new SFOwnPlayer(data) : new SFOtherPlayer(data));
+
+                        SFItem.forceCorrectRune(obj.Items.Wpn1);
+                        SFItem.forceCorrectRune(obj.Items.Wpn2);
+
+                        if (obj.Class != 4) {
+                            obj.Items.Wpn2 = SFItem.empty();
+                        }
+
+                        EditorController.fill(obj);
+                    }
+                } catch (e) {
+                    console.info(e);
+                }
+            }
+
+            $('#sim-save').click(function () {
+                if (EditorController.valid()) {
+                    if (selected != -1) {
+                        var index = players1.findIndex(p => p.index == selected);
+                        if (index != -1) {
+                            players1[index].player = EditorController.read();
+                        } else {
+                            index = players2.findIndex(p => p.index == selected);
+                            if (index != -1) {
+                                players2[index].player = EditorController.read();
+                            }
+                        }
+
+                        show();
+                    }
+                }
+            });
+
+            $('#sim-copy').click(function () {
+                copyText(JSON.stringify(EditorController.read()));
+            });
+
+            $('#sim-copyall1').click(function () {
+                copyText(JSON.stringify(players1.map(p => toSimulatorModel(p.player))));
+            });
+
+            $('#sim-copyall2').click(function () {
+                copyText(JSON.stringify(players2.map(p => toSimulatorModel(p.player))));
+            });
+
+            $('#sim-add1').click(function () {
+                if (EditorController.valid()) {
+                    var player = EditorController.read();
+
+                    if (player.Name == '') {
+                        player.Name = `Player ${ players1.length + 1 }`;
+                    }
+
+                    selected = iterator++;
+
+                    players1.push({
+                        player: player,
+                        index: selected
+                    });
+
+                    EditorController.clear();
+                    show();
+                }
+            });
+
+            $('#sim-add2').click(function () {
+                if (EditorController.valid()) {
+                    var player = EditorController.read();
+
+                    if (player.Name == '') {
+                        player.Name = `Player ${ players2.length + 1 }`;
+                    }
+
+                    selected = iterator++;
+
+                    players2.push({
+                        player: player,
+                        index: selected
+                    });
+
+                    EditorController.clear();
+                    show();
+                }
+            });
+
+            function show () {
+                players1.sort((a, b) => b.player.Level - a.player.Level);
+                players2.sort((a, b) => b.player.Level - a.player.Level);
+
+                var content1 = '';
+                var content2 = '';
+
+                for (var i = 0; i < players1.length; i++) {
+                    var player = players1[i].player;
+                    var index = players1[i].index;
+
+                    content1 += `
+                        <div class="row selectable ${ index == selected ? 'selected' : 'nselected' }" data-index="${ index }">
+                            <div class="player-index">${ i + 1 }</div>
+                            <div class="four wide text-center column">
+                                <img class="ui medium centered image ${ players1[i].Inactive ? 'inactive' : '' }" style="width: 50px;" src="res/class${ player.Class }.png">
+                                ${ player.Class == 8 && player.Mask > 0 ? `<img class="ui image ${ players1[i].Inactive ? 'inactive' : '' }" src="res/mask${ player.Mask }.png" style="position: absolute; right: 0.75em; bottom: 0.1em; width: 1.55em; height: 1.55em;">` : '' }
+                            </div>
+                            <div class="three wide text-center column">
+                                <b>${ player.Level }</b>
+                            </div>
+                            <div class="one wide column"></div>
+                            <div class="six wide column">
+                                <b>${ player.Name }</b>
+                            </div>
+                            <div class="two wide text-center column">
+                                <i class="trash right aligned alternate glow outline icon" data-index-trash="${ index }"></i>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                for (var i = 0; i < players2.length; i++) {
+                    var player = players2[i].player;
+                    var index = players2[i].index;
+
+                    content2 += `
+                        <div class="row selectable ${ index == selected ? 'selected' : 'nselected' }" data-index="${ index }">
+                            <div class="player-index">${ i + 1 }</div>
+                            <div class="four wide text-center column">
+                                <img class="ui medium centered image ${ players2[i].Inactive ? 'inactive' : '' }" style="width: 50px;" src="res/class${ player.Class }.png">
+                                ${ player.Class == 8 && player.Mask > 0 ? `<img class="ui image ${ players2[i].Inactive ? 'inactive' : '' }" src="res/mask${ player.Mask }.png" style="position: absolute; left: 1em; top: 0em; scale: 0.3;">` : '' }
+                            </div>
+                            <div class="three wide text-center column">
+                                <b>${ player.Level }</b>
+                            </div>
+                            <div class="one wide column"></div>
+                            <div class="six wide column">
+                                <b>${ player.Name }</b>
+                            </div>
+                            <div class="two wide text-center column">
+                                <i class="trash right aligned alternate glow outline icon" data-index-trash="${ index }"></i>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                $('#sim-players1').html(content1);
+                $('#sim-players2').html(content2);
+
+                $('[data-index]').click(function () {
+                    selected = Number($(this).attr('data-index'));
+
+                    var obj = players1.find(p => p.index == selected);
+                    if (obj) {
+                        EditorController.fill(obj.player);
+                        show();
+                    } else {
+                        obj = players2.find(p => p.index == selected);
+                        if (obj) {
+                            EditorController.fill(obj.player);
+                            show();
+                        }
+                    }
+                });
+
+                $('[data-index]').contextmenu(function () {
+                    event.preventDefault();
+
+                    var sel = Number($(this).attr('data-index'));
+
+                    var obj = players1.find(p => p.index == sel);
+                    if (!obj) {
+                        obj = players2.find(p => p.index == sel);
+                    }
+
+                    if (obj) {
+                        obj.Inactive = !obj.Inactive;
+                        show();
+                    }
+                });
+
+                $('[data-index-trash]').click(function () {
+                    var sel = Number($(this).attr('data-index-trash'));
+
+                    if (sel == selected) {
+                        selected = -1;
+                        EditorController.clear();
+                    }
+
+                    var obj = players1.findIndex(p => p.index == sel);
+                    if (obj >= 0) {
+                        players1.splice(obj, 1);
+                    } else {
+                        obj = players2.findIndex(p => p.index == sel);
+                        if (obj >= 0) {
+                            players2.splice(obj, 1);
+                        }
+                    }
+
+                    show();
+                });
+            }
+
+            // Run simulation
+            $('#sim-run').click(function () {
+                if (players1.length > 0 && players2.length > 0) {
+                    $('#sim-results').val('');
+
+                    toggleAll(true);
+
+                    for (let p of players1) p.player.ForceGladiator = true;
+                    for (let p of players2) p.player.ForceGladiator = true;
+
+                    var threads = Number($('#sim-threads').val()) || 4;
+
+                    var finished = 0;
+                    var chance = 0;
+
+                    for (var i = 0; i < threads; i++) {
+                        var worker = createWebWorker('js/sim/players.js');
+
+                        worker.addEventListener('message', function (message) {
+                            if (message.data.command == 'finished') {
+                                finished += 1;
+                                chance += message.data.results;
+
+                                if (finished == threads) {
+                                    toggleAll();
+                                    $('#sim-results').val((chance / threads).toFixed(2) + '%');
+                                }
+                            }
+                        }, false);
+
+                        worker.postMessage({
+                            mode: SimulatorType.Guild,
+                            player: players1,
+                            players: players2,
+                            iterations: 5000
+                        });
+                    }
+                }
+            });
+        </script>
+    </body>
+</html>
