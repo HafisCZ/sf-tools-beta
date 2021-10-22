@@ -275,6 +275,38 @@ const ErrorPopup = new (class extends FloatingPopup {
     }
 })();
 
+const BetaOverPopup = new (class extends FloatingPopup {
+    constructor () {
+        super(0);
+    }
+
+    _createModal () {
+        return `
+            <div class="ui basic mini modal" style="background-color: #0b0c0c; padding: 1em; margin: -2em; border-radius: 0.5em;">
+                <h2 class="ui centered header" style="padding-bottom: 0.5em; padding-top: 0;">Testing period has ended</h2>
+                <div class="text-center" style="text-align: justify; margin-top: 1em; line-height: 1.3em; margin-bottom: 2em;" data-op="text">
+                    <b>Thank you for testing!</b>
+                    <br>
+                    <br>
+                    You may freely continue to use this version but keep in mind that any new updates won't be included here.
+                    <br>
+                    <br>
+                    For most up-to-date version please return <a href="https://sftools.mar21.eu/">here</a>.
+                </div>
+                <button class="ui black fluid button" data-op="continue">Continue</button>
+            </div>
+        `;
+    }
+
+    _createBindings () {
+        this.$parent.find('[data-op="continue"]').click(() => {
+            SiteOptions.beta_over = true;
+            this.close()
+        });
+    }
+})();
+
+
 // Automatically open Terms and Conditions if not accepted yet
 document.addEventListener("DOMContentLoaded", function() {
     if (!SiteOptions.terms_accepted) {
@@ -283,5 +315,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
     if (SiteOptions.version_accepted != MODULE_VERSION) {
         PopupController.open(ChangeLogPopup);
+    }
+
+    if (!SiteOptions.beta_over) {
+        PopupController.open(BetaOverPopup);
     }
 });
