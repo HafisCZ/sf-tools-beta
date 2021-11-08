@@ -18,11 +18,10 @@
         <script src="js/util.js"></script>
         <script src="js/lang.js"></script>
 
-        <script src="js/plugins.js"></script>
-
         <script src="js/core/util.js"></script>
         <script src="js/core/playa.js"></script>
         <script src="js/core/core.js"></script>
+        <script src="js/plugins.js"></script>
         <script src="js/core/idb.js"></script>
         <script src="js/core/ast.js"></script>
         <script src="js/stats/settings.js"></script>
@@ -516,7 +515,7 @@
             </div>
         </div>
 
-        <div id="results-modal" class="ui mini modal">
+        <div id="results-modal" class="ui mini modal" style="max-height: 94vh; overflow-y: auto;">
           <div class="header">Results</div>
           <div class="content">
 
@@ -554,6 +553,13 @@
                 } else {
                     PopupController.close(LoaderPopup);
                 }
+            }
+
+            let ignoreChanges = false;
+            function withoutUpdate (func) {
+                ignoreChanges = true;
+                func();
+                ignoreChanges = false;
             }
 
             $('#sim-threads').captiveInputField('dungeon_sim/threads', 4, v => !isNaN(v) && v >= 1);
@@ -909,7 +915,10 @@
                         };
                     })
                 }).dropdown('setting', 'onChange', (value, text) => {
-                    $('#available-list').dropdown('clear');
+                    if (!ignoreChanges) {
+                        $('#available-list').dropdown('clear');
+                    }
+
                     settingsChanged();
 
                     dungeon = DUNGEON_DATA[dungeon_current];
@@ -1036,10 +1045,12 @@
                 if (enemyIndex < 0) {
                     return null;
                 } else {
-                    let dung = DUNGEON_DATA[dungeon + (isShadow ? 100 : 0)];
+                    let id = dungeon + (isShadow ? 100 : 0);
+                    let dung = DUNGEON_DATA[id];
                     let boss = Object.entries(dung.floors)[enemyIndex];
                     if (boss) {
                         return {
+                            id,
                             dungeon: dung,
                             name: boss[0],
                             boss: boss[1]
@@ -1128,6 +1139,11 @@
 
                                             dungeon = sel.dungeon;
                                             boss = getBossData(sel.boss, sel.name);
+
+                                            withoutUpdate(() => {
+                                                $('#dungeon-list').dropdown('set selected', sel.id);
+                                                $('#boss-list').dropdown('set selected', sel.name);
+                                            });
                                         }
                                     });
                                 } else {
@@ -1170,19 +1186,17 @@
                             })
                         )
                     );
+
+                    PopupController.close(LoaderPopup);
                 }).catch(function () {
+                    PopupController.close(LoaderPopup);
                     Logger.log('WARNING', 'Database could not be opened!');
                     $('#stats-list').empty();
                 });
             });
 
             function showMassDungeonResults (bosses, results) {
-                bosses = bosses.map((dungeon, index) => {
-                    return {
-                        result: results[index],
-                        ... dungeon
-                    }
-                }).sort((b, a) => a.result - b.result);
+                bosses = bosses.map((dungeon, index) => Object.assign({ result: results[index] }, dungeon)).sort((b, a) => a.result - b.result);
 
                 $('#results-modal .content').html(`
                     <div class="ui two column grid">

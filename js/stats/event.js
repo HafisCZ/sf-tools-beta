@@ -170,7 +170,7 @@ class GroupDetailView extends View {
         this.identifier = identitifier;
         this.group = DatabaseManager.getGroup(identitifier);
 
-        this.$name.text(this.group.Latest.Name);
+        this.$name.html(`${this.group.Latest.Name} <span style="opacity: 50%; font-weight: initial; font-size: initial">${this.identifier}</span>`);
 
         this.timestamp = this.group.LatestTimestamp;
         this.reference = (SiteOptions.always_prev && this.group.List[1] ? this.group.List[1][0] : undefined) || this.group.LatestTimestamp;
@@ -315,7 +315,7 @@ class GroupDetailView extends View {
             this.$table.find('tbody').append($('<tr data-cloneext style="height: 2em;"></tr>'));
 
             this.$parent.find('[data-id]').click((event) => {
-                UI.PlayerDetail.show($(event.target).attr('data-id'), this.timestamp, this.reference);
+                UI.PlayerDetail.show(event.currentTarget.dataset.id, this.timestamp, this.reference);
             });
 
             this.$context.context('bind', this.$parent.find('[data-id]'));
@@ -807,7 +807,7 @@ class PlayerHistoryView extends View {
         this.list = list;
         this.player = player;
 
-        this.$name.text(this.player.Name);
+        this.$name.html(`${this.player.Name} <span style="opacity: 50%; font-weight: initial; font-size: initial">${this.player.Identifier}</span>`);
 
         this.load();
     }
@@ -888,10 +888,10 @@ class BrowseView extends View {
                         var sel = this.$parent.find('[data-id].css-op-select');
                         if (sel.length) {
                             for (var el of sel) {
-                                DatabaseManager.hide($(el).attr('data-id'));
+                                DatabaseManager.hideIdentifier($(el).attr('data-id'));
                             }
                         } else {
-                            DatabaseManager.hide(source.attr('data-id'));
+                            DatabaseManager.hideIdentifier(source.attr('data-id'));
                         }
 
                         this.$filter.trigger('change');
@@ -904,9 +904,9 @@ class BrowseView extends View {
                         let cnt = null;
 
                         if (sel.length) {
-                            cnt = sel.toArray().map(x => DatabaseManager.getPlayer($(x).attr('data-id')).Latest.toSimulatorModel());
+                            cnt = sel.toArray().map(x => DatabaseManager.getPlayer($(x).attr('data-id'), $(x).attr('data-ts')).toSimulatorModel());
                         } else {
-                            cnt = DatabaseManager.getPlayer(source.attr('data-id')).Latest.toSimulatorModel();
+                            cnt = DatabaseManager.getPlayer(source.attr('data-id'), source.attr('data-ts')).toSimulatorModel();
                         }
 
                         copyText(JSON.stringify(cnt));
@@ -915,7 +915,7 @@ class BrowseView extends View {
                 {
                     label: 'Copy with companions',
                     action: (source) => {
-                        copyText(JSON.stringify(DatabaseManager.getPlayer(source.attr('data-id')).Latest.toSimulatorShadowModel()));
+                        copyText(JSON.stringify(DatabaseManager.getPlayer(source.attr('data-id'), source.attr('data-ts')).toSimulatorShadowModel()));
                     }
                 },
                 {
@@ -995,7 +995,7 @@ class BrowseView extends View {
             'qc': 'Show only selected categories',
             't': 'Show online template directly'
         }).change((event) => {
-            var filter = $(event.target).val().split(/(?:\s|\b)(c|p|g|s|e|l|f|r|x|h|o|sr|q|qc|t):/);
+            var filter = $(event.currentTarget).val().split(/(?:\s|\b)(c|p|g|s|e|l|f|r|x|h|o|sr|q|qc|t):/);
 
             var terms = [
                 {
@@ -1089,14 +1089,14 @@ class BrowseView extends View {
                     var ast = new Expression(arg);
                     if (ast.isValid()) {
                         terms.push({
-                            test: (arg, player, timestamp, compare) => arg.eval(player, compare),
+                            test: (arg, player, timestamp, compare) => new ExpressionScope().with(player, compare).eval(arg),
                             arg: ast
                         });
                     }
                 } else if (key == 'sr') {
                     var ast = new Expression(arg);
                     if (ast.isValid()) {
-                        this.autosort = (player, compare) => ast.eval(player, compare);
+                        this.autosort = (player, compare) => new ExpressionScope().with(player, compare).eval(ast);
                     }
                 } else if (key == 'f') {
                     perf = isNaN(arg) ? 1 : Math.max(1, Number(arg));
@@ -1200,17 +1200,17 @@ class BrowseView extends View {
         var timestamps = [];
         var references = [];
 
-        for (const timestamp of Object.keys(DatabaseManager.Timestamps)) {
+        for (const timestamp of DatabaseManager.PlayerTimestamps) {
             timestamps.push({
                 name: formatDate(timestamp),
                 value: timestamp,
-                selected: timestamp == DatabaseManager.Latest
+                selected: timestamp == DatabaseManager.LatestPlayer
             });
 
             references.push({
                 name: formatDate(timestamp),
                 value: timestamp,
-                selected: timestamp == DatabaseManager.Latest
+                selected: timestamp == DatabaseManager.LatestPlayer
             });
         }
 
@@ -1253,8 +1253,8 @@ class BrowseView extends View {
             this.$filter.trigger('change');
         });
 
-        this.timestamp = DatabaseManager.Latest;
-        this.reference = DatabaseManager.Latest;
+        this.timestamp = DatabaseManager.LatestPlayer;
+        this.reference = DatabaseManager.LatestPlayer;
 
         this.load();
     }
@@ -1316,9 +1316,9 @@ class BrowseView extends View {
         this.table.refresh(() => {
             this.$parent.find('[data-id]').click((event) => {
                 if (event.ctrlKey) {
-                    $(event.target).toggleClass('css-op-select');
+                    $(event.currentTarget).toggleClass('css-op-select');
                 } else {
-                    UI.PlayerDetail.show($(event.target).attr('data-id'), this.timestamp, this.reference);
+                    UI.PlayerDetail.show(event.currentTarget.dataset.id, this.timestamp, this.reference);
                 }
             }).mousedown((event) => {
                 event.preventDefault();
@@ -1351,8 +1351,16 @@ class GroupsView extends View {
             this.show();
         });
 
+        this.$parent.find('[data-op="empty"]').checkbox(SiteOptions.groups_empty ? 'check' : 'uncheck').change((event) => {
+            SiteOptions.groups_empty = !SiteOptions.groups_empty;
+
+            this.empty = SiteOptions.groups_empty;
+            this.show();
+        });
+
         this.hidden = SiteOptions.groups_hidden;
         this.others = SiteOptions.groups_other;
+        this.empty = SiteOptions.groups_empty;
 
         this.$context = $('<div class="ui custom popup right center"></div>');
         this.$parent.prepend(this.$context);
@@ -1362,7 +1370,7 @@ class GroupsView extends View {
                 {
                     label: 'Show / Hide',
                     action: (source) => {
-                        DatabaseManager.hide(source.attr('data-id'));
+                        DatabaseManager.hideIdentifier(source.attr('data-id'));
                         this.show();
                     }
                 },
@@ -1403,8 +1411,7 @@ class GroupsView extends View {
         var index = 0;
         var index2 = 0;
 
-        var groups = Object.values(DatabaseManager.Groups);
-        groups.sort((a, b) => b.LatestTimestamp - a.LatestTimestamp);
+        var groups = Object.values(DatabaseManager.Groups).filter(g => this.empty || g.List.some(([, g]) => g.MembersPresent)).sort((a, b) => b.LatestTimestamp - a.LatestTimestamp);
 
         for (var i = 0, group; group = groups[i]; i++) {
             var hidden = DatabaseManager.Hidden.has(group.Latest.Identifier);
@@ -1446,8 +1453,8 @@ class GroupsView extends View {
         this.$list.html(content);
         this.$list2.html(content2);
 
-        this.$parent.find('[data-id]').click(function () {
-            UI.show(UI.GroupDetail, $(this).attr('data-id'));
+        this.$parent.find('[data-id]').click((event) => {
+            UI.show(UI.GroupDetail, event.currentTarget.dataset.id);
         });
 
         this.$context.context('bind', this.$parent.find('[data-id]'));
@@ -1491,7 +1498,7 @@ class PlayersView extends View {
                 {
                     label: 'Show / Hide',
                     action: (source) => {
-                        DatabaseManager.hide(source.attr('data-id'));
+                        DatabaseManager.hideIdentifier(source.attr('data-id'));
                         this.show();
                     }
                 },
@@ -1534,7 +1541,7 @@ class PlayersView extends View {
             'h': 'Show hidden',
             'o': 'Show other'
         }).change((event) => {
-            var filter = $(event.target).val().split(/(?:\s|\b)(c|p|g|s|e|l|a|h|o):/);
+            var filter = $(event.currentTarget).val().split(/(?:\s|\b)(c|p|g|s|e|l|a|h|o):/);
 
             var terms = [
                 {
@@ -1624,7 +1631,7 @@ class PlayersView extends View {
                     var ast = new Expression(arg);
                     if (ast.isValid()) {
                         terms.push({
-                            test: (arg, player) => arg.eval(player, player, this.settings, player),
+                            test: (arg, player) => new ExpressionScope().with(player, player).addSelf(player).eval(arg),
                             arg: ast
                         });
                     }
@@ -1722,8 +1729,6 @@ class PlayersView extends View {
 
     load () {
         this.$configure.settingsButton(SettingsManager.exists('me'));
-
-        this.settings = SettingsManager.get('me', 'me', PredefinedTemplates['Me Default']);
         this.$filter.trigger('change');
     }
 }
@@ -1752,6 +1757,12 @@ class FilesView extends View {
                 players: players,
                 groups: DatabaseManager.getGroupsFor(players)
             });
+        }
+    }
+
+    tagSelected () {
+        if (this.simple && _not_empty(this.selectedFiles)) {
+            PopupController.open(FileTagPopup, this.selectedFiles, () => this.show());
         }
     }
 
@@ -1790,11 +1801,27 @@ class FilesView extends View {
 
     // Merge selected
     mergeSelected () {
+        if (this.simple) {
+            if (this.selectedFiles.length > 1) {
+                PopupController.open(LoaderPopup);
+                DatabaseManager.merge(this.selectedFiles).then(() => this.show());
+            }
+        } else {
+            const timestamps = _uniq(Object.values(this.selectedPlayers).map(player => player.timestamp));
+            if (timestamps.length > 1) {
+                PopupController.open(LoaderPopup);
+                DatabaseManager.merge(timestamps).then(() => this.show());
+            }
+        }
+    }
+
+    // Hide selected
+    hideSelected () {
         PopupController.open(LoaderPopup);
         if (this.simple) {
-            DatabaseManager.merge(this.selectedFiles).then(() => this.show());
+            DatabaseManager.hideTimestamps(... this.selectedFiles).then(() => this.show());
         } else {
-            DatabaseManager.merge(_uniq(Object.values(this.selectedPlayers).map(player => player.timestamp))).then(() => this.show());
+            DatabaseManager.hide(Object.values(this.selectedPlayers)).then(() => this.show());
         }
     }
 
@@ -1803,7 +1830,7 @@ class FilesView extends View {
         PopupController.open(LoaderPopup);
 
         let pendingPromises = [];
-        Array.from(fileEvent.target.files).forEach(file => pendingPromises.push(file.text().then(fileContent => DatabaseManager.import(fileContent, file.lastModified).catch((exception) => {
+        Array.from(fileEvent.currentTarget.files).forEach(file => pendingPromises.push(file.text().then(fileContent => DatabaseManager.import(fileContent, file.lastModified).catch((exception) => {
             PopupController.open(WarningPopup, exception);
             Logger.error(exception, 'Error occured while trying to import a file!');
         }))));
@@ -1840,35 +1867,33 @@ class FilesView extends View {
         this.$parent.find('[data-op="cloud-export-partial"]').click(() => this.exportSelectedCloud());
         this.$parent.find('[data-op="delete-all"]').click(() => this.deleteAll());
         this.$parent.find('[data-op="delete"]').click(() => this.deleteSelected());
-        this.$parent.find('[data-op="merge"]').click(() => this.mergeSelected())
+        this.$parent.find('[data-op="merge"]').click(() => this.mergeSelected());
+        this.$parent.find('[data-op="hide"]').click(() => this.hideSelected());
         this.$parent.find('[data-op="upload"]').change(event => this.importJson(event));
         this.$parent.find('[data-op="endpoint"]').click(() => this.importEndpoint());
         this.$parent.find('[data-op="shared"]').click(() => this.importCloud());
 
+        this.$tags = this.$parent.find('[data-op="tags"]').click(() => this.tagSelected());
         this.$filters = this.$parent.find('[data-op="filters"]');
         this.$results = this.$parent.find('[data-op="files-search-results"]');
         this.$resultsSimple = this.$parent.find('[data-op="files-search-results-simple"]');
 
         this.$parent.find('[data-op="mark-all"]').click(() => this.markAll());
 
-        this.prepareCheckbox('always_prev', 'alwaysprev');
-        this.prepareCheckbox('obfuscated', 'obfuscated');
-        this.prepareCheckbox('insecure', 'insecure');
-        this.prepareCheckbox('advanced', 'advanced');
-        this.prepareCheckbox('terms_accepted', 'terms');
-
         this.$advancedLeft = this.$parent.find('[data-op="advanced-left"]');
         this.$advancedCenter = this.$parent.find('[data-op="advanced-center"]');
         this.$simpleCenter = this.$parent.find('[data-op="simple-center"]');
 
+        this.prepareCheckbox('advanced', 'advanced');
         SiteOptions.onChange('advanced', enabled => this.setLayout(enabled));
-        SiteOptions.onChange('terms_accepted', enabled => {
-            if (enabled) {
-                this.$parent.find(`[data-op="checkbox-terms"]`).checkbox('set checked');
-            } else {
-                PopupController.open(TermsAndConditionsPopup);
-            }
+
+        this.prepareCheckbox('hidden', 'hidden');
+        SiteOptions.onChange('hidden', () => {
+            window.location.href = window.location.href;
         });
+
+        this.$tagFilter = this.$parent.find('[data-op="simple-tags"]');
+        this.tagFilter = undefined;
         this.setLayout(SiteOptions.advanced, true);
     }
 
@@ -1951,6 +1976,7 @@ class FilesView extends View {
         let timestamps = this.$filter_timestamp.dropdown('get value').map(value => parseInt(value));
         let origins = this.$filter_origin.dropdown('get value');
         let type = parseInt(this.$filter_type.dropdown('get value'));
+        let hidden = this.$filter_hidden.dropdown('get value');
 
         DatabaseManager.export(null, null, data => (
             (!prefixes || prefixes.length == 0 || prefixes.includes(data.prefix)) &&
@@ -1958,15 +1984,23 @@ class FilesView extends View {
             (player_identifiers.length == 0 || player_identifiers.includes(data.identifier)) &&
             (timestamps.length == 0 || timestamps.includes(data.timestamp)) &&
             (origins.length == 0 || origins.includes(`${data.origin}`)) &&
-            (!type || data.own != type - 1)
+            (!type || data.own != type - 1) &&
+            (!SiteOptions.hidden || hidden.length == 0 || (SiteOptions.hidden && (data.hidden && hidden.includes('yes')) || (!data.hidden && hidden.includes('no'))))
         )).then(({ players }) => {
             this.currentPlayers = players.reduce((memo, player) => {
                 memo[_uuid(player)] = player;
                 return memo;
             }, {});
 
-            this.$results.html(players.sort((a, b) => b.timestamp - a.timestamp).slice(0, 100).map(player => `
-                <tr>
+            const sortedPlayers = players.sort((a, b) => b.timestamp - a.timestamp);
+
+            let notice = ''
+            if (sortedPlayers.length > 250) {
+                notice = `<tr style="height: 2em;"><td colspan="6" class="text-center" style="font-weight: bold; line-height: 2em;">Another ${sortedPlayers.length - 250} entries have been hidden to improve performance</td></tr>`
+            }
+
+            this.$results.html(sortedPlayers.slice(0, 250).map(player => `
+                <tr data-tr-mark="${_uuid(player)}" ${player.hidden ? 'style="color: gray;"' : ''}>
                     <td class="selectable clickable text-center" data-mark="${_uuid(player)}"><i class="circle ${ this.selectedPlayers[_uuid(player)] ? '' : 'outline ' }icon"></i></td>
                     <td class="text-center">${ this.timeMap[player.timestamp] }</td>
                     <td class="text-center">${ this.prefixMap[player.prefix] }</td>
@@ -1974,59 +2008,193 @@ class FilesView extends View {
                     <td class="text-center">${ this.groupMap[player.group] || '' }</td>
                     <td class="text-center">${ player.origin || '' }</td>
                 </tr>
-            `).join(''));
+            `).join('') + notice);
 
             this.$parent.find('[data-mark]').click((event) => {
                 let uuid = event.currentTarget.dataset.mark;
 
-                if ($(`[data-mark="${uuid}"] > i`).toggleClass('outline').hasClass('outline')) {
-                    delete this.selectedPlayers[uuid];
+                if (event.shiftKey && this.lastSelectedPlayer && this.lastSelectedPlayer != uuid) {
+                    // Elements
+                    const $startSelector = $(`tr[data-tr-mark="${this.lastSelectedPlayer}"]`);
+                    const $endSelector = $(`tr[data-tr-mark="${uuid}"]`);
+                    // Element indexes
+                    const startSelectorIndex = $startSelector.index();
+                    const endSelectorIndex = $endSelector.index();
+                    const selectDown = startSelectorIndex < endSelectorIndex;
+                    const elementArray = selectDown ? $startSelector.nextUntil($endSelector) : $endSelector.nextUntil($startSelector);
+                    // Get list of timestamps to be changed
+                    const toChange = [ uuid, this.lastSelectedPlayer ];
+                    for (const obj of elementArray.toArray()) {
+                        toChange.push(obj.dataset.trMark);
+                    }
+
+                    // Change all timestamps
+                    if (uuid in this.selectedPlayers) {
+                        for (const mark of toChange) {
+                            $(`[data-mark="${mark}"] > i`).addClass('outline');
+                            delete this.selectedPlayers[mark];
+                        }
+                    } else {
+                        for (const mark of toChange) {
+                            $(`[data-mark="${mark}"] > i`).removeClass('outline');
+                            this.selectedPlayers[mark] = this.currentPlayers[mark];
+                        }
+                    }
                 } else {
-                    this.selectedPlayers[uuid] = this.currentPlayers[uuid];
+                    if ($(`[data-mark="${uuid}"] > i`).toggleClass('outline').hasClass('outline')) {
+                        delete this.selectedPlayers[uuid];
+                    } else {
+                        this.selectedPlayers[uuid] = this.currentPlayers[uuid];
+                    }
                 }
 
+                this.lastSelectedPlayer = uuid;
                 this.updateSelectedCounter();
             });
         });
     }
 
     updateFileList () {
-        this.currentFiles = _array_to_hash(Object.keys(DatabaseManager.Timestamps).map(v => parseInt(v)), (ts) => [ts, {
+        let currentTags = Object.keys(DatabaseManager.findUsedTags(undefined));
+        if (currentTags.length > 1 || (currentTags.length == 1 && currentTags[0] !== 'undefined')) {
+            let content = `
+                <div data-tag="*" class="ui basic tiny button">All</div>
+                <div data-tag="" class="ui basic black tiny button">None</div>
+            `;
+            for (const name of currentTags) {
+                if (name !== 'undefined') {
+                    content += `
+                        <div data-tag="${name}" class="ui basic tiny button" style="background-color: ${_strToHSL(name)}; color: white;">${name}</div>
+                    `;
+                }
+            }
+
+            this.$tagFilter.html(content);
+            this.$tagFilter.show();
+            if (this.tagFilter !== '' && this.tagFilter !== undefined && !currentTags.includes(this.tagFilter)) {
+                this.tagFilter = undefined;
+            }
+
+            document.querySelector(`[data-tag="${ typeof this.tagFilter === 'undefined' ? '*' : this.tagFilter }"]`).classList.remove('basic');
+
+            this.$parent.find('[data-tag]').click((event) => {
+                const tag = event.currentTarget.dataset.tag;
+                const tagToFilter = tag === '*' ? undefined : tag;
+
+                if (tagToFilter !== this.tagFilter) {
+                    this.tagFilter = tagToFilter;
+                    this.show(true);
+                }
+            });
+        } else {
+            this.$tagFilter.hide();
+            this.tagFilter = undefined;
+        }
+
+        this.currentFiles = _array_to_hash(DatabaseManager.PlayerTimestamps, (ts) => [ts, {
             prettyDate: formatDate(ts),
             playerCount: _len_where(DatabaseManager.Timestamps[ts], id => DatabaseManager._isPlayer(id)),
             groupCount: _len_where(DatabaseManager.Timestamps[ts], id => !DatabaseManager._isPlayer(id)),
             version: DatabaseManager.findDataFieldFor(ts, 'version'),
-            origin: DatabaseManager.findDataFieldFor(ts, 'origin')
+            origin: DatabaseManager.findDataFieldFor(ts, 'origin'),
+            tags: (() => {
+                const tagMap = DatabaseManager.findUsedTags([ts]);
+                const tagEntries = _sort_des(Object.entries(tagMap), ([, a]) => a);
+
+                let tagContent = '';
+                for (const [name, count] of tagEntries) {
+                    const countText = tagEntries.length > 1 ? ` (${count})` : '';
+
+                    if (name === 'undefined') {
+                        if (tagEntries.length > 1) {
+                            tagContent += `
+                                <div class="ui gray horizontal label">None${countText}</div>
+                            `;
+                        }
+                    } else {
+                        tagContent += `
+                            <div class="ui horizontal label" style="background-color: ${_strToHSL(name)}; color: white;">${name}${countText}</div>
+                        `;
+                    }
+                }
+
+                return {
+                    tagList: Object.keys(tagMap),
+                    tagContent
+                };
+            })()
         }]);
 
-        this.$resultsSimple.html(_sort_des(Object.entries(this.currentFiles), v => v[0]).map(([timestamp, { prettyDate, playerCount, groupCount, version, origin }]) => `
-            <tr>
-                <td class="selectable clickable text-center" data-timestamp="${timestamp}"><i class="circle ${ this.selectedFiles.includes(timestamp) ? '' : 'outline ' }icon"></i></td>
-                <td class="text-center">${ prettyDate }</td>
-                <td class="text-center">${ playerCount }</td>
-                <td>${ groupCount }</td>
-                <td class="text-center">${ version || 'Not known' }</td>
-                <td class="text-center">${ origin || '' }</td>
-            </tr>
-        `).join(''));
+        this.$resultsSimple.html(_sort_des(Object.entries(this.currentFiles), v => v[0]).filter(([, { tags: { tagList } }]) => {
+            return typeof this.tagFilter === 'undefined' || tagList.includes(this.tagFilter) || (tagList.includes('undefined') && this.tagFilter === '');
+        }).map(([timestamp, { prettyDate, playerCount, groupCount, version, origin, tags: { tagContent } }]) => {
+            const allHidden = !_any_true(DatabaseManager.Timestamps[timestamp], id => DatabaseManager.Players[id] && !_dig(DatabaseManager.Players, id, timestamp, 'Data', 'hidden'));
+            return `
+                <tr data-tr-timestamp="${timestamp}" ${allHidden ? 'style="color: gray;"' : ''}>
+                    <td class="selectable clickable text-center" data-timestamp="${timestamp}"><i class="circle ${ this.selectedFiles.includes(timestamp) ? '' : 'outline ' }icon"></i></td>
+                    <td class="text-center">${ prettyDate }</td>
+                    <td class="text-center">${ playerCount }</td>
+                    <td class="text-center">${ groupCount }</td>
+                    <td>${ tagContent }</td>
+                    <td class="text-center">${ version || 'Not known' }</td>
+                    <td class="text-center">${ origin || '' }</td>
+                    <td class="clickable text-center" data-edit="${timestamp}"><i class="wrench icon"></i></td>
+                </tr>
+            `;
+        }).join(''));
 
         this.$parent.find('[data-timestamp]').click((event) => {
-            let timestamp = parseInt(event.currentTarget.dataset.timestamp);
+            const timestamp = parseInt(event.currentTarget.dataset.timestamp);
 
-            if ($(`[data-timestamp="${timestamp}"] > i`).toggleClass('outline').hasClass('outline')) {
-                _remove(this.selectedFiles, timestamp);
+            if (event.shiftKey && this.lastSelectedTimestamp && this.lastSelectedTimestamp != timestamp) {
+                // Elements
+                const $startSelector = $(`tr[data-tr-timestamp="${this.lastSelectedTimestamp}"]`);
+                const $endSelector = $(`tr[data-tr-timestamp="${timestamp}"]`);
+                // Element indexes
+                const startSelectorIndex = $startSelector.index();
+                const endSelectorIndex = $endSelector.index();
+                const selectDown = startSelectorIndex < endSelectorIndex;
+                const elementArray = selectDown ? $startSelector.nextUntil($endSelector) : $endSelector.nextUntil($startSelector);
+                // Get list of timestamps to be changed
+                const toChange = [ timestamp, this.lastSelectedTimestamp ];
+                for (const obj of elementArray.toArray()) {
+                    toChange.push(parseInt(obj.dataset.trTimestamp));
+                }
+
+                // Change all timestamps
+                if (_has(this.selectedFiles, timestamp)) {
+                    for (const ts of toChange) {
+                        $(`[data-timestamp="${ts}"] > i`).addClass('outline');
+                        _remove_unless_includes(this.selectedFiles, ts);
+                    }
+                } else {
+                    for (const ts of toChange) {
+                        $(`[data-timestamp="${ts}"] > i`).removeClass('outline');
+                        _push_unless_includes(this.selectedFiles, ts);
+                    }
+                }
             } else {
-                this.selectedFiles.push(timestamp);
+                if ($(`[data-timestamp="${timestamp}"] > i`).toggleClass('outline').hasClass('outline')) {
+                    _remove(this.selectedFiles, timestamp);
+                } else {
+                    this.selectedFiles.push(timestamp);
+                }
             }
 
+            this.lastSelectedTimestamp = timestamp;
             this.updateSelectedCounter();
+        });
+
+        this.$parent.find('[data-edit]').click((event) => {
+            const timestamp = parseInt(event.currentTarget.dataset.edit);
+            PopupController.open(FileEditPopup, timestamp, () => this.show());
         });
     }
 
     updateLists () {
-        this.timeMap = _array_to_hash(Object.keys(DatabaseManager.Timestamps), (ts) => [ts, formatDate(ts)]);
+        this.timeMap = _array_to_hash(DatabaseManager.PlayerTimestamps, (ts) => [ts, formatDate(ts)]);
         this.playerMap = _array_to_hash(Object.entries(DatabaseManager.Players), ([id, player]) => [id, player.Latest.Name]);
-        this.groupMap = _array_to_hash(Object.entries(DatabaseManager.Groups), ([id, group]) => [id, group.Latest.Name], { 0: 'None' });
+        this.groupMap = _array_to_hash(Object.entries(DatabaseManager.Groups).filter(([id,]) => DatabaseManager.Groups[id].List.some(([, g]) => g.MembersPresent)), ([id, group]) => [id, group.Latest.Name], { 0: 'None' });
         for (const [ id, name ] of Object.entries(DatabaseManager.GroupNames)) {
             if (!this.groupMap[id]) {
                 this.groupMap[id] = name;
@@ -2035,7 +2203,25 @@ class FilesView extends View {
 
         this.prefixMap = _array_to_hash(DatabaseManager.Prefixes, (prefix) => [prefix, _pretty_prefix(prefix)]);
 
-        this.timeArray = Object.entries(this.timeMap).sort((a, b) => parseInt(b[0]) - parseInt(a[1]));
+        this.timeArray = Object.entries(this.timeMap).sort((a, b) => parseInt(b[0]) - parseInt(a[0]));
+
+        const playerNameFrequency = {};
+        for (const name of Object.values(this.playerMap)) {
+            if (name in playerNameFrequency) {
+                playerNameFrequency[name]++;
+            } else {
+                playerNameFrequency[name] = 1;
+            }
+        }
+
+        const groupNameFrequency = {};
+        for (const name of Object.values(this.groupMap)) {
+            if (name in groupNameFrequency) {
+                groupNameFrequency[name]++;
+            } else {
+                groupNameFrequency[name] = 1;
+            }
+        }
 
         this.$filters.html(`
             <div class="field">
@@ -2047,13 +2233,13 @@ class FilesView extends View {
             <div class="field">
                 <label>Player (<span data-op="unique-player"></span> unique)</label>
                 <select class="ui fluid search selection dropdown" multiple="" data-op="files-search-player">
-                    ${ Object.entries(this.playerMap).map(([player, value]) => `<option value="${ player }">${ value }</option>`).join('') }
+                    ${ Object.entries(this.playerMap).map(([player, value]) => `<option value="${ player }">${ value }${ playerNameFrequency[value] > 1 ? ` - ${_pretty_prefix(player)}` : '' }</option>`).join('') }
                 </select>
             </div>
             <div class="field">
                 <label>Group (<span data-op="unique-group"></span> unique)</label>
                 <select class="ui fluid search selection dropdown" multiple="" data-op="files-search-group">
-                    ${ Object.entries(this.groupMap).map(([group, value]) => `<option value="${ group }">${ value }</option>`).join('') }
+                    ${ Object.entries(this.groupMap).map(([group, value]) => `<option value="${ group }">${ value }${ groupNameFrequency[value] > 1 ? ` - ${_pretty_prefix(group)}` : '' }</option>`).join('') }
                 </select>
             </div>
             <div class="field">
@@ -2077,11 +2263,18 @@ class FilesView extends View {
                     <option value="endpoint">Endpoint</option>
                     <option value="endpoint/dungeons">Dungeons (Endpoint)</option>
                     <option value="har/dungeons">Dungeons (HAR)</option>
-                    <option value="endpoint/pets">Pets (HAR)</option>
-                    <option value="har/pets">Pets (Endpoint)</option>
+                    <option value="endpoint/pets">Pets (Endpoint)</option>
+                    <option value="har/pets">Pets (HAR)</option>
                     <option value="merge">Merged</option>
                     <option value="share">Shared</option>
                     <option value="migration">Migrated</option>
+                </select>
+            </div>
+            <div class="field" ${ SiteOptions.hidden ? '' : 'style="display: none;"' }>
+                <label>Hidden</label>
+                <select class="ui fluid search selection dropdown" multiple="" data-op="files-search-hidden">
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
                 </select>
             </div>
         `);
@@ -2111,6 +2304,11 @@ class FilesView extends View {
             placeholder: 'Any'
         });
 
+        this.$filter_hidden = this.$parent.find('[data-op="files-search-hidden"]').dropdown({
+            onChange: this.updateSearchResults.bind(this),
+            placeholder: 'Any'
+        });
+
         this.$filter_type = this.$parent.find('[data-op="files-search-type"]').dropdown({
             onChange: this.updateSearchResults.bind(this)
         });
@@ -2120,18 +2318,18 @@ class FilesView extends View {
         this.$parent.find('[data-op="unique-group"]').html(Object.keys(this.groupMap).length - 1);
         this.$parent.find('[data-op="unique-prefix"]').html(Object.keys(this.prefixMap).length);
 
-        if (DatabaseManager.Latest) {
-            this.$filter_timestamp.dropdown('set selected', [ String(DatabaseManager.Latest) ]);
-        } else {
-            this.updateSearchResults();
-        }
+        this.updateSearchResults();
     }
 
     show (forceUpdate = false) {
         this.selectedPlayers = {};
         this.selectedFiles = [];
+        this.lastSelectedTimestamp = null;
+        this.lastSelectedPlayer = null;
 
         PopupController.close(LoaderPopup);
+
+        this.$tags.toggle(this.simple);
 
         // Set counters
         if (this.lastChange != DatabaseManager.LastChange || forceUpdate) {
@@ -2144,7 +2342,7 @@ class FilesView extends View {
             this.updateSelectedCounter();
         } else {
             this.$results.find('[data-mark] > i').addClass('outline');
-            this.$results.find('[data-timestamp] > i').addClass('outline');
+            this.$resultsSimple.find('[data-timestamp] > i').addClass('outline');
         }
     }
 }
@@ -2222,7 +2420,7 @@ class SettingsView extends View {
 
         // Input handling
         this.$area.on('input', (event) => {
-            var val = $(event.target).val();
+            var val = $(event.currentTarget).val();
             if (this.pasted) {
                 val = val.replace(/\t/g, ' ');
 
@@ -2363,11 +2561,10 @@ class SettingsView extends View {
     }
 
     show (key = 'players') {
-        this.settings = {
+        this.settings = Object.assign({
             name: key,
-            content: this.getDefaultTemplate(key),
-            ... SettingsManager.getObj(key, this.getDefault(key)) || {}
-        };
+            content: this.getDefaultTemplate(key)
+        }, SettingsManager.getObj(key, this.getDefault(key)) || {});
 
         // Update settings
         if (this.$settingsList.length) {
@@ -3301,6 +3498,40 @@ class OnlineFilesView extends View {
     }
 }
 
+class OptionsView extends View {
+    constructor (parent) {
+        super(parent)
+
+        this.prepareCheckbox('always_prev', 'alwaysprev');
+        this.prepareCheckbox('obfuscated', 'obfuscated');
+        this.prepareCheckbox('insecure', 'insecure');
+        this.prepareCheckbox('terms_accepted', 'terms');
+
+        SiteOptions.onChange('terms_accepted', enabled => {
+            if (enabled) {
+                this.$parent.find(`[data-op="checkbox-terms"]`).checkbox('set checked');
+            } else {
+                PopupController.open(TermsAndConditionsPopup);
+            }
+        });
+    }
+
+    // Prepare checkbox
+    prepareCheckbox (property, name) {
+        this.$parent.find(`[data-op="checkbox-${ name }"]`).checkbox({
+            onChecked: () => { SiteOptions[property] = true },
+            onUnchecked: () => { SiteOptions[property] = false }
+        }).checkbox(SiteOptions[property] ? 'set checked' : 'set unchecked');
+    }
+
+    show () {
+
+    }
+}
+
+const PROFILES_PROPS = ['timestamp', 'origin', 'identifier', 'profile', 'prefix', 'tag', 'version', 'own', 'name', 'identifier', 'group', 'groupname'];
+const PROFILES_INDEXES = ['own', 'identifier', 'timestamp', 'group', 'prefix', 'profile', 'origin', 'tag'];
+
 class ProfilesView extends View {
     constructor (parent) {
         super(parent);
@@ -3310,19 +3541,32 @@ class ProfilesView extends View {
 
     show () {
         let content = '';
-        for (const [key, { name, filters }] of ProfileManager.getProfiles()) {
+        for (const [key, { name, primary, secondary }] of ProfileManager.getProfiles()) {
             content += `
                 <div class="row" style="margin-top: 1em; border: 1px solid black; border-radius: .25em;">
-                    <div class="four wide column"><h3 class="ui clickable ${ key == ProfileManager.getActiveProfileName() ? 'orange' : '' } header" data-key="${key}">${name}</h3></div>
+                    <div class="four wide column">
+                        <h3 class="ui ${ key == ProfileManager.getActiveProfileName() ? 'orange' : '' } header">
+                            <span data-key="${key}" class="clickable">${name}</span><br/>
+                            <span style="font-size: 90%;">(${key})</span>
+                        </h3>
+                        ${
+                            ProfileManager.isEditable(key) ? `
+                                <div style="position: absolute; left: 1em; bottom: 0;">
+                                    <i class="clickable trash alternate outline icon" data-delete="${key}"></i>
+                                    <i class="clickable wrench icon" style="margin-left: 1em;" data-edit="${key}"></i>
+                                </div>
+                            ` : ''
+                        }
+                    </div>
                     <div class="twelve wide column">
                         <table class="ui table" style="table-layout: fixed;">
                             <tr>
-                                <td style="width: 20%;">Player filter</td>
-                                <td>${ this.showRules(filters.players) }</td>
+                                <td style="width: 20%;">Primary filter</td>
+                                <td>${ this.showRules(primary) }</td>
                             </tr>
                             <tr>
-                                <td>Group filter</td>
-                                <td>${ this.showRules(filters.groups) }</td>
+                                <td>Secondary filter</td>
+                                <td>${ secondary ? Expression.format(secondary, undefined, PROFILES_PROPS) : '<b>None</b>' }</td>
                             </tr>
                         </table>
                     </div>
@@ -3340,9 +3584,20 @@ class ProfilesView extends View {
 
         this.$list.html(content);
         this.$parent.find('[data-key]').click(event => {
-            const key = event.target.dataset.key;
+            const key = event.currentTarget.dataset.key;
             ProfileManager.setActiveProfile(key);
             window.location.href = window.location.href;
+        });
+
+        this.$parent.find('[data-delete]').click((event) => {
+            const key = event.currentTarget.dataset.delete;
+            ProfileManager.removeProfile(key);
+            this.show();
+        });
+
+        this.$parent.find('[data-edit]').click((event) => {
+            const key = event.currentTarget.dataset.edit;
+            PopupController.open(ProfileCreatePopup, () => this.show(), key);
         });
 
         this.$parent.find('[data-op="create"]').click(() => {
@@ -3352,28 +3607,17 @@ class ProfilesView extends View {
     }
 
     addProfile () {
-        const name = ProfileManager.getFreeProfileName();
-        ProfileManager.setProfile(name, {
-            name: 'Testing profile',
-            filters: {
-                players: {
-                    name: 'profile',
-                    mode: 'equals',
-                    value: [`'${name}'`]
-                },
-                groups: {
-                    name: 'profile',
-                    mode: 'equals',
-                    value: [`'${name}'`]
-                }
-            }
-        });
+        PopupController.open(ProfileCreatePopup, () => this.show());
     }
 
     showRules (rule) {
         if (rule) {
             const { name, mode, value } = rule;
-            return `<b>${name}</b> ${this.stringifyMode(mode)} ${value ? value.map(v => Expression.format(v)).join('<br/>') : ''}`;
+            if (mode == 'between') {
+                return `<b>${name}</b> between ${Expression.format(value[0])} and ${Expression.format(value[1])}`;
+            } else {
+                return `<b>${name}</b> ${this.stringifyMode(mode)} ${value ? value.map(v => Expression.format(v)).join('<br/>') : ''}`;
+            }
         } else {
             return '<b>None</b>';
         }
@@ -3383,7 +3627,6 @@ class ProfilesView extends View {
         return {
             'above': '>',
             'below': '<',
-            'between': '<>',
             'equals': '='
         }[v] || '??';
     }
@@ -3392,13 +3635,20 @@ class ProfilesView extends View {
 // UI object collection
 const UI = {
     current: null,
+    buttons: {},
     show: function (screen, ... arguments) {
         UI.current = screen;
-
         $('.ui.container').addClass('css-hidden');
-
         screen.$parent.removeClass('css-hidden');
         screen.show(... arguments);
+
+        const name = screen.constructor.name;
+        if (this.buttons[name]) {
+            for (const [, el] of Object.entries(this.buttons)) {
+                el.classList.remove('title-active');
+            }
+            this.buttons[name].classList.add('title-active');
+        }
     },
     initialize: function () {
         UI.Settings = new SettingsView('view-settings');
@@ -3417,11 +3667,15 @@ const UI = {
         UI.OnlineFiles = new OnlineFilesView('modal-onlinefile');
         UI.OnlineShareFile = new OnlineShareFileView('modal-share');
         UI.Profiles = new ProfilesView('view-profiles');
+        UI.Options = new OptionsView('view-options');
     },
     register: function (view, id) {
         const element = document.getElementById(id);
+        this.buttons[view.constructor.name] = element;
         if (element) {
-            element.addEventListener('click', () => UI.show(view));
+            element.addEventListener('click', () => {
+                UI.show(view);
+            });
         }
     }
 }

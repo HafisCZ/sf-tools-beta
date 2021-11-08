@@ -9,6 +9,13 @@ body {
     overflow-x: auto;
 }
 
+tr[data-tr-timestamp], tr[data-tr-mark] {
+    user-select: none;
+    -ms-user-select: none;
+    -moz-user-select: none;
+    -webkit-user-select: none;
+}
+
 .sftools-loader {
     opacity: 65%;
     animation: spin 1.2s linear infinite;
@@ -16,6 +23,12 @@ body {
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+}
+
+[data-tr-timestamp] .ui.label {
+    padding-left: 6px;
+    padding-right: 6px;
+    min-width: 1em;
 }
 
 @keyframes spin {
@@ -223,6 +236,10 @@ body.dimmed .menu {
     color: white;
     margin-top: 0;
     padding-left: 0.25em;
+}
+
+.title-active {
+    color: orange !important;
 }
 
 .detail-timestamp {
@@ -700,6 +717,12 @@ h3.file-selected {
     position: fixed;
     bottom: 3em;
     right: 3.7em;
+}
+
+.css-show-empty {
+    position: fixed;
+    bottom: 5em;
+    right: 3.9em;
 }
 
 .css-ol-show-other {

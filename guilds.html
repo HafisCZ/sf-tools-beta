@@ -17,12 +17,11 @@
         <script src="js/util.js"></script>
         <script src="js/lang.js"></script>
 
-        <script src="js/plugins.js"></script>
-
         <script src="js/core/util.js"></script>
         <script src="js/core/playa.js"></script>
         <script src="js/sim/players.js"></script>
         <script src="js/core/core.js"></script>
+        <script src="js/plugins.js"></script>
         <script src="js/changelog.js"></script>
         <script src="js/views.js"></script>
 
@@ -158,7 +157,7 @@
                         <div class="bordered bone">
                             <div class="field">
                                 <label>Name</label>
-                                <input class="text-center" type="text" data-path="Name">
+                                <input class="text-center" type="text" data-path="Name" placeholder="Player name">
                             </div>
                             <div class="two fields">
                                 <div class="field">
@@ -177,7 +176,7 @@
                                 </div>
                                 <div class="field">
                                     <label>Level</label>
-                                    <input class="text-center" type="text" data-path="Level">
+                                    <input class="text-center" type="text" data-path="Level" placeholder="1 - 700">
                                 </div>
                             </div>
                             <div class="five fields">
@@ -439,7 +438,7 @@
                         name: new Field('[data-path="Name"]', ''),
                         class: new Field('[data-path="Class"]', '1'),
                         mask: new Field('[data-path="Mask"]', '0'),
-                        level: new Field('[data-path="Level"]', '', Field.isNumber),
+                        level: new Field('[data-path="Level"]', '', Field.isPlayerLevel),
                         armor: new Field('[data-path="Armor"]', '', Field.isNumber),
 
                         resistance_fire: new Field('[data-path="Runes.ResistanceFire"]', '', Field.isResistanceRune),

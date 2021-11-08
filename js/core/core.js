@@ -1,7 +1,7 @@
 // Version stuff
-const MODULE_VERSION = 'v5.0190';
+const MODULE_VERSION = 'v5.1785';
 const TABLE_VERSION = 'v9';
-const CORE_VERSION = 'BETA v2';
+const CORE_VERSION = 'v3';
 
 const Logger = new (class {
     constructor () {
@@ -14,7 +14,8 @@ const Logger = new (class {
             'PERFLOG': 'ffffff',
             'ECLIENT': 'd142f5',
             'TRACKER': 'c8f542',
-            'MIGRATE': '7a8ccf'
+            'MIGRATE': '7a8ccf',
+            'ACTIONS': 'eb73c3'
         };
 
         this.log('VERSION', `Module: ${ MODULE_VERSION }, Core: ${ CORE_VERSION }, Table: ${ TABLE_VERSION }`);
@@ -35,17 +36,52 @@ const Logger = new (class {
 })();
 
 class PreferencesHandler {
+    static _isAccessible () {
+        let currentValue = PreferencesHandler.available;
+
+        if (typeof currentValue === 'undefined') {
+            try {
+                window.localStorage['test'];
+                currentValue = true;
+            } catch (exception) {
+                currentValue = false;
+            }
+
+            if (!currentValue) {
+                Logger.log('WARNING', 'Storage is not accessible');
+                PreferencesHandler.available = currentValue;
+            }
+        }
+
+        return currentValue;
+    }
+
+    _getStorage (kind) {
+        if (PreferencesHandler._isAccessible()) {
+            return window[kind];
+        } else {
+            return undefined;
+        }
+    }
 
     constructor () {
-        this.storage = window.localStorage || window.sessionStorage || { };
+        this.storage = this._getStorage('localStorage') || this._getStorage('sessionStorage') || { };
     }
 
     set (key, object) {
         this.storage[key] = JSON.stringify(object);
     }
 
+    setRaw (key, object) {
+        this.storage[key] = object;
+    }
+
     get (key, def) {
         return this.storage[key] ? JSON.parse(this.storage[key]) : def;
+    }
+
+    getRaw (key, def) {
+        return this.storage[key] || def;
     }
 
     exists (key) {
@@ -68,7 +104,6 @@ class PreferencesHandler {
         this.storage = { };
         this.anonymous = true;
     }
-
 }
 
 // Preferences
@@ -82,9 +117,11 @@ const SiteOptions = new (class {
             insecure: false,
             obfuscated: false,
             advanced: false,
+            hidden: false,
             terms_accepted: false,
             version_accepted: false,
             groups_hidden: false,
+            groups_empty: false,
             players_hidden: false,
             browse_hidden: false,
             groups_other: false,
@@ -92,8 +129,7 @@ const SiteOptions = new (class {
             always_prev: false,
             migration_allowed: true,
             migration_accepted: false,
-            profile: 'default',
-            beta_over: false
+            profile: 'default'
         };
 
         this.listeners = [];
@@ -108,6 +144,7 @@ const SiteOptions = new (class {
                 },
                 set: function (value) {
                     this.options[propName] = value;
+                    Logger.log('R_FLAGS', `${propName} set to ${value}`)
                     SharedPreferences.set('options', this.options);
                     this.changed(propName);
                 }
@@ -133,60 +170,51 @@ const DEFAULT_PROFILE = {
     name: 'Default',
     temporary: false,
     slot: 0,
-    filters: {
-        players: null,
-        groups: null
-    }
+    primary: null,
+    secondary: null
 };
 
 const SELF_PROFILE = {
-    filters: {
-        players: {
-            name: 'own',
-            mode: 'equals',
-            value: ['1']
-        },
-        groups: {
-            mode: 'none'
-        }
-    }
+    primary: {
+        name: 'own',
+        mode: 'equals',
+        value: ['1']
+    },
+    secondary: null,
+    only_players: true
+};
+
+const DEFAULT_PROFILE_A = {
+    name: 'Own only',
+    primary: {
+        name: 'own',
+        mode: 'equals',
+        value: ['1']
+    },
+    secondary: null
+};
+
+const DEFAULT_PROFILE_B = {
+    name: 'Newer that 1 month',
+    primary: {
+        name: 'timestamp',
+        mode: 'above',
+        value: ['now() - 4 * @7days']
+    },
+    secondary: null
 };
 
 const ProfileManager = new (class {
     constructor () {
         this.profiles = Object.assign({
             'default': DEFAULT_PROFILE,
-            'own': {
-                name: 'Own only',
-                filters: {
-                    players: {
-                        name: 'own',
-                        mode: 'equals',
-                        value: ['1']
-                    },
-                    groups: {
-                        name: 'own',
-                        mode: 'equals',
-                        value: ['1']
-                    }
-                }
-            },
-            'month_old': {
-                name: 'Newer that 1 month',
-                filters: {
-                    players: {
-                        name: 'timestamp',
-                        mode: 'above',
-                        value: ['now() - 4 * @7days']
-                    },
-                    groups: {
-                        name: 'timestamp',
-                        mode: 'above',
-                        value: ['now() - 4 * @7days']
-                    }
-                }
-            }
-        }, Preferences.get('profiles', {}));
+            'own': DEFAULT_PROFILE_A,
+            'month_old': DEFAULT_PROFILE_B
+        }, Preferences.get('db_profiles', {}));
+    }
+
+    isEditable (key) {
+        return !['default', 'own', 'month_old'].includes(key) && SiteOptions.profile != key;
     }
 
     getDefaultProfile () {
@@ -211,19 +239,99 @@ const ProfileManager = new (class {
 
     removeProfile (name) {
         delete this.profiles[name];
-        Preferences.set('profiles', this.profiles);
+        Preferences.set('db_profiles', this.profiles);
     }
 
     setProfile (name, profile) {
         this.profiles[name] = profile;
-        Preferences.set('profiles', this.profiles);
-    }
-
-    getFreeProfileName () {
-        return `profile_${Object.keys(this.profiles).length}`;
+        Preferences.set('db_profiles', this.profiles);
     }
 
     getProfiles () {
         return Object.entries(this.profiles);
+    }
+})();
+
+/*
+    Sample action:
+    {
+        name: 'Action 1',
+        trigger: load | import, // when action should be triggered
+        temporary: true | false, // should apply in temporary mode too
+        test: 'timestamp < (now() - @7days)', // condition
+        targets: player | group | file, // player, group and/or file
+        action: 'tag', // what action does
+        args: ['Outdated'] // arguments for the action if necessary
+    }
+*/
+const Actions = new (class {
+    constructor () {
+        this.actions = Preferences.get('actions', {});
+    }
+
+    set (name, action) {
+        this.actions[name] = action;
+        this._save();
+    }
+
+    get (name) {
+        return this.actions[name];
+    }
+
+    remove (name) {
+        delete this.actions[name];
+        this._save();
+    }
+
+    async apply (actTrigger, ... args) {
+        const pending = [];
+        const temporary = DatabaseManager.Profile.temporary;
+
+        for (const action of Object.values(this.actions)) {
+            if (action.trigger == actTrigger && (!temporary || action.temporary)) {
+                pending.push(action);
+            }
+        }
+
+        if (_not_empty(pending)) {
+            if (actTrigger === 'load') {
+                const { players, groups } = DatabaseManager._getFile();
+                args = [ players, groups ];
+            }
+
+            for (const action of pending) {
+                await this._applyAction(action, ... args);
+            }
+
+            Logger.log('ACTIONS', `${pending.length} action(s) for event ${actTrigger} applied`);
+        }
+    }
+
+    async _applyAction (actionObj, ... actionArgs) {
+        const { trigger, target, test, action, args } = actionObj;
+        const expr = new Expression(test);
+
+        if (action === 'tag') {
+            const newTag = args[0];
+            if (target === 'player') {
+                for (const player of actionArgs[0]) {
+                    if (player.tag != newTag && new ExpressionScope().addSelf(player).eval(expr)) {
+                        await DatabaseManager.setTagFor(player.identifier, player.timestamp, newTag);
+                    }
+                }
+            } else if (target === 'group') {
+                throw 'target not allowed';
+            } else if (target === 'file') {
+                for (const { timestamp, players, groups } of DatabaseManager._fileize(... actionArgs)) {
+                    if (_any_true(players, p => p.tag != newTag) && new ExpressionScope().addSelf({ players, groups }).eval(expr)) {
+                        await DatabaseManager.setTag([timestamp], newTag);
+                    }
+                }
+            }
+        }
+    }
+
+    _save () {
+        Preferences.set('actions', this.actions);
     }
 })();

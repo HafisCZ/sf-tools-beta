@@ -18,11 +18,10 @@
         <script src="js/util.js"></script>
         <script src="js/lang.js"></script>
 
-        <script src="js/plugins.js"></script>
-
         <script src="js/core/util.js"></script>
         <script src="js/core/playa.js"></script>
         <script src="js/core/core.js"></script>
+        <script src="js/plugins.js"></script>
         <script src="js/core/idb.js"></script>
         <script src="js/core/ast.js"></script>
         <script src="js/stats/settings.js"></script>
@@ -175,16 +174,10 @@
         <div class="ui main container">
             <!-- Header -->
             <div class="ui five columns middle aligned grid">
-                <div class="two wide column" data-position="right center" data-tooltip="Keep unchecked!">
+                <div class="five wide column" data-position="bottom left" data-tooltip="Keep unchecked unless playing on beta backend! Applies to: Beta, S31 Germany and new Speed">
                     <div class="ui checkbox" id="useArmor">
                         <input type="checkbox" name="useArmorCheckbox">
-                        <label for="useArmorCheckbox">Use Armor</label>
-                    </div>
-                </div>
-                <div class="three wide column">
-                    <div class="ui two small buttons">
-                        <button class="ui button" type="submit" id="sim-save">Save</button>
-                        <button class="ui button" type="submit" id="sim-load">Load</button>
+                        <label for="useArmorCheckbox">Beta backend</label>
                     </div>
                 </div>
                 <div class="one wide column">
@@ -742,7 +735,7 @@
                     petB.fillDebugInformation(b, false);
                 }
 
-                if (petA && petB && petA.Pet < 19 && petA.Boss == 0 && petB.Boss == 1) {
+                if (petA && petB && petA.Boss == 0 && petB.Boss == 1) {
                     $('#sim-generate').removeClass('disabled');
                 } else {
                     $('#sim-generate').addClass('disabled');
@@ -759,21 +752,6 @@
             });
 
             var useArmor = false;
-
-            $('#sim-save').click(() => {
-                localStorage['pets/0'] = JSON.stringify([
-                    petA.getData(),
-                    petB.getData()
-                ]);
-            });
-
-            $('#sim-load').click(() => {
-                if (localStorage['pets/0']) {
-                    var [ a, b ] = JSON.parse(localStorage['pets/0']);
-                    petA.loadData(a);
-                    petB.loadData(b);
-                }
-            });
 
             $('#sim-run').click(function () {
                 if (validateBulk(petA.$root) && validateBulk(petB.$root)) {
@@ -832,7 +810,7 @@
                     var a = petA.getData();
                     var b = petB.getData();
 
-                    if (a && b && a.Pet < 19 && !a.Boss && b.Boss) {
+                    if (a && b && !a.Boss && b.Boss) {
                         toggleAll(true);
 
                         var worker = createWebWorker('js/sim/pets.js');
@@ -863,7 +841,7 @@
 
                     var temp = petB.getData();
 
-                    if (a && a.Pet < 19 && temp && !a.Boss && temp.Boss) {
+                    if (a && temp && !a.Boss && temp.Boss) {
                         toggleAll(true);
 
                         var count = 0;
@@ -917,7 +895,7 @@
 
                     var temp = petB.getData();
 
-                    if (a && a.Pet < 19 && temp && !a.Boss && temp.Boss) {
+                    if (a && temp && !a.Boss && temp.Boss) {
                         toggleAll(true);
 
                         var count = 0;
@@ -1066,7 +1044,10 @@
                             })
                         )
                     );
+
+                    PopupController.close(LoaderPopup);
                 }).catch(function () {
+                    PopupController.close(LoaderPopup);
                     Logger.log('WARNING', 'Database could not be opened!');
                     $('#stats-list').empty();
                 });

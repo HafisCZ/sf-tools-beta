@@ -533,7 +533,7 @@ class SFGroup {
         this.Timestamp = data.timestamp;
 
         this.MembersPresent = 0;
-        this.MemberCount = data.save[3];
+        // this.MemberCount = data.save[3];
         this.Honor = data.save[13];
         this.Pet = data.save[378];
 
@@ -578,10 +578,10 @@ class SFGroup {
                 this.Names.splice(i, 1);
                 this.LastActives.splice(i, 1);
                 this.Members.splice(i--, 1);
-                this.MemberCount--;
             }
         }
 
+        this.MemberCount = this.Members.length;
         this.TotalKnights = data.save[370];
         this.TotalInstructor = Math.trunc(Math.min(_sum(this.Instructors), 500) / 5);
         this.TotalTreasure = Math.trunc(Math.min(_sum(this.Treasures), 500) / 5);

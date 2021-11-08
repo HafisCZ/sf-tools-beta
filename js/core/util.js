@@ -15,6 +15,33 @@ function _try (obj, method, ... args) {
     }
 }
 
+function _has (arr, obj) {
+    return arr.indexOf(obj) > -1;
+}
+
+function _any_true (arr, m) {
+    for (const a of arr) {
+        if (m(a)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function _push_unless_includes(arr, obj) {
+    if (!_has(arr, obj)) {
+        arr.push(obj);
+    }
+}
+
+function _remove_unless_includes(arr, obj) {
+    const index = arr.indexOf(obj);
+    if (index > -1) {
+        arr.splice(index, 1);
+    }
+}
+
 function _present (obj) {
     return obj !== null && typeof obj !== 'undefined';
 }
@@ -113,16 +140,16 @@ function _jsonify (text) {
 }
 
 function _pretty_prefix (prefix) {
-    let [serverName, ...serverDomain] = prefix.split('_');
-    let properName = serverName.charAt(0).toUpperCase() + serverName.slice(1);
-    let properDomain = serverDomain.join('.').toUpperCase();
+    const splitPrefix = prefix.split('_');
+    const properName = splitPrefix[0].charAt(0).toUpperCase() + splitPrefix[0].slice(1);
+    const properDomain = splitPrefix[1].toUpperCase();
 
     return `${properName} .${properDomain}`;
 }
 
 function _array_to_hash (array, processor, base = {}) {
-    return array.reduce((memo, object) => {
-        const [key, value] = processor(object);
+    return array.reduce((memo, object, i) => {
+        const [key, value] = processor(object, i);
         memo[key] = value;
         return memo;
     }, base);
@@ -144,4 +171,37 @@ function _empty (obj) {
 
 function _not_empty (obj) {
     return !_empty(obj);
+}
+
+function _hashCode (str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        hash = hash & hash;
+    }
+    return hash;
+}
+
+function _strToHSL (str) {
+    return `hsl(${ _hashCode(str) % 360 }, 100%, 30%)`;
+}
+
+function _string_to_binary(str) {
+    const arr = new Uint16Array(str.length);
+    for (let i = 0; i < arr.length; i++) {
+        arr[i] = str.charCodeAt(i);
+    }
+
+    return btoa(String.fromCharCode(...new Uint8Array(arr.buffer)));
+}
+
+function _binary_to_string(bin) {
+  const binary = atob(bin);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return String.fromCharCode(...new Uint16Array(bytes.buffer));
 }

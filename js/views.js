@@ -5,34 +5,43 @@ class FloatingPopup {
 
     open (...args) {
         return new Promise((resolve, reject) => {
-            this.resolve = resolve;
+            if (this.shouldOpen) {
+                this.resolve = resolve;
 
-            if (!this._hasParent()) {
-                const modal = $(this._createModal()).addClass('active');
-                const container = $(`
-                    <div style="display: none; z-index: 999; position: fixed; width: 100vw; height: 100vh; left: 0; top: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, ${this.opacity})">
-                    </div>
-                `);
+                if (!this._hasParent()) {
+                    const modal = $(this._createModal()).addClass('active');
+                    const container = $(`
+                        <div style="display: none; z-index: 999; position: fixed; width: 100vw; height: 100vh; left: 0; top: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, ${this.opacity})">
+                        </div>
+                    `);
 
-                modal.appendTo(container);
-                container.appendTo($('body').first());
-                this.$parent = container;
+                    modal.appendTo(container);
+                    container.appendTo($('body').first());
+                    this.$parent = container;
 
-                this._createModal();
-                this._createBindings();
+                    this._createModal();
+                    this._createBindings();
+                }
+
+                this._applyArguments(...args);
+                this.$parent.show();
+            } else {
+                resolve();
             }
-
-            this._applyArguments(...args);
-            this.$parent.show();
         });
     }
 
-    close () {
+    close (value) {
+        this.shouldOpen = false;
         if (this._hasParent() && this.resolve) {
             this.$parent.hide();
-            this.resolve();
+            this.resolve(value);
             this.resolve = undefined;
         }
+    }
+
+    openable () {
+        this.shouldOpen = true;
     }
 
     _hasParent () {
@@ -59,6 +68,7 @@ const PopupController = new (class {
     }
 
     open (popup, ...args) {
+        popup.openable();
         return (this.promise = this.promise.then(() => popup.open(...args)));
     }
 
@@ -258,7 +268,16 @@ const ErrorPopup = new (class extends FloatingPopup {
                 <div class="text-center" style="text-align: justify; margin-top: 1em; line-height: 1.3em; margin-bottom: 2em;" data-op="text">
                     ...
                 </div>
-                <button class="ui red fluid button" data-op="continue">Click here or refresh the page</button>
+                <div style="margin-top: 2em;">
+                    <div class="text-center" style="text-align: justify; margin-top: 1em; line-height: 1.3em; margin-bottom: 2em;">
+                        <h4 class="ui white header">This error might have also been caused by your current profile.<br>
+                        Click the revert button below to revert back to default profile.</h4>
+                    </div>
+                </div>
+                <div class="ui two buttons">
+                    <button class="ui red fluid button" data-op="continue">Click here or refresh the page</button>
+                    <button class="ui red fluid button" data-op="continue-default">Revert back to default profile</button>
+                </div>
             </div>
         `;
     }
@@ -268,6 +287,11 @@ const ErrorPopup = new (class extends FloatingPopup {
         this.$parent.find('[data-op="continue"]').click(() => {
             window.location.href = window.location.href;
         });
+
+        this.$parent.find('[data-op="continue-default"]').click(() => {
+            ProfileManager.setActiveProfile('default');
+            window.location.href = window.location.href;
+        });
     }
 
     _applyArguments (error) {
@@ -275,49 +299,322 @@ const ErrorPopup = new (class extends FloatingPopup {
     }
 })();
 
-const BetaOverPopup = new (class extends FloatingPopup {
+const FileEditPopup = new (class extends FloatingPopup {
     constructor () {
         super(0);
     }
 
     _createModal () {
         return `
-            <div class="ui basic mini modal" style="background-color: #0b0c0c; padding: 1em; margin: -2em; border-radius: 0.5em;">
-                <h2 class="ui centered header" style="padding-bottom: 0.5em; padding-top: 0;">Testing period has ended</h2>
-                <div class="text-center" style="text-align: justify; margin-top: 1em; line-height: 1.3em; margin-bottom: 2em;" data-op="text">
-                    <b>Thank you for testing!</b>
-                    <br>
-                    <br>
-                    You may freely continue to use this version but keep in mind that any new updates won't be included here.
-                    <br>
-                    <br>
-                    For most up-to-date version please return <a href="https://sftools.mar21.eu/">here</a>.
+            <div class="ui basic tiny modal" style="background-color: #ffffff; padding: 1em; margin: -2em; border-radius: 0.5em; border: 1px solid #0b0c0c;">
+                <h2 class="ui header" style="color: black; padding-bottom: 0.5em; padding-top: 0; padding-left: 0;">Edit file</h2>
+                <div class="ui form" style="margin-top: 1em; line-height: 1.3em; margin-bottom: 2em;">
+                    <div class="field">
+                        <label>Timestamp</label>
+                        <input data-op="timestamp" type="text">
+                    </div>
                 </div>
-                <button class="ui black fluid button" data-op="continue">Continue</button>
+                <div class="ui three fluid buttons">
+                    <button class="ui black fluid button" data-op="cancel">Cancel</button>
+                    <button class="ui fluid button" style="background-color: orange; color: black;" data-op="save">Save</button>
+                </div>
             </div>
         `;
     }
 
     _createBindings () {
-        this.$parent.find('[data-op="continue"]').click(() => {
-            SiteOptions.beta_over = true;
-            this.close()
+        this.$parent.find('[data-op="cancel"]').click(() => {
+            this.close();
         });
+
+        this.$parent.find('[data-op="save"]').click(() => {
+            const newTimestamp = Math.trunc(parseOwnDate(this.$timestamp.val()) / 60000);
+            if (newTimestamp && newTimestamp != this.truncatedTimestamp) {
+                this.close();
+                PopupController.open(LoaderPopup);
+                DatabaseManager.rebase(this.sourceTimestamp, newTimestamp * 60000).then(this.callback);
+            } else {
+                this.close();
+            }
+        });
+
+        this.$timestamp = this.$parent.find('[data-op="timestamp"]')
+    }
+
+    _applyArguments (timestamp, callback) {
+        this.callback = callback;
+        this.sourceTimestamp = timestamp;
+        this.truncatedTimestamp = Math.trunc(timestamp / 60000);
+        this.$timestamp.val(formatDate(timestamp));
     }
 })();
 
+const FileTagPopup = new (class extends FloatingPopup {
+    constructor () {
+        super(0);
+    }
+
+    _createModal () {
+        return `
+            <div class="ui basic mini modal" style="background-color: #ffffff; padding: 1em; margin: -2em; border-radius: 0.5em; border: 1px solid #0b0c0c;">
+                <h2 class="ui header" style="color: black; padding-bottom: 0.5em; padding-top: 0; padding-left: 0;">Edit tags</h2>
+                <div class="ui form" style="margin-top: 1em; line-height: 1.3em; margin-bottom: 2em;">
+                    <div class="field">
+                        <label>Current tags:</label>
+                        <input data-op="old-tags" type="text" placeholder="None" disabled>
+                    </div>
+                    <div class="field">
+                        <label>Replacement tag:</label>
+                        <input data-op="new-tags" type="text" placeholder="None">
+                    </div>
+                </div>
+                <div class="ui three fluid buttons">
+                    <button class="ui black fluid button" data-op="cancel">Cancel</button>
+                    <button class="ui fluid button" style="background-color: orange; color: black;" data-op="save">Save</button>
+                </div>
+            </div>
+        `;
+    }
+
+    _createBindings () {
+        this.$oldTags = this.$parent.find('[data-op="old-tags"]');
+        this.$newTags = this.$parent.find('[data-op="new-tags"]');
+
+        this.$parent.find('[data-op="cancel"]').click(() => {
+            this.close();
+        });
+
+        this.$parent.find('[data-op="save"]').click(() => {
+            const tag = this.$newTags.val().trim();
+            this.close();
+            PopupController.open(LoaderPopup);
+            DatabaseManager.setTag(this.timestamps, tag).then(this.callback);
+        });
+    }
+
+    _applyArguments (timestamps, callback) {
+        this.timestamps = timestamps;
+        this.callback = callback;
+
+        const tags = Object.entries(DatabaseManager.findUsedTags(timestamps));
+        if (tags.length == 1) {
+            const tag = _dig(tags, 0, 0);
+            if (tag == 'undefined') {
+                this.$oldTags.val('');
+            } else {
+                this.$oldTags.val(tag);
+            }
+        } else {
+            this.$oldTags.val(tags.map(([key, count]) => `${key === 'undefined' ? 'None' : key} (${count})`).join(', '));
+        }
+
+        this.$newTags.val('');
+    }
+})();
+
+const ProfileCreatePopup = new (class extends FloatingPopup {
+
+    constructor () {
+        super(0);
+    }
+
+    _createModal () {
+        return `
+            <div class="ui small modal" style="background-color: #ffffff; padding: 1em; margin: -2em; border-radius: 0.5em; border: 1px solid #0b0c0c;">
+                <h2 class="ui header" style="color: black; padding-bottom: 0.5em; padding-top: 0; padding-left: 0;">Create/Edit profile</h2>
+                <div class="ui form" style="margin-top: 1em; line-height: 1.3em; margin-bottom: 2em;">
+                    <div class="two fields">
+                        <div class="four wide field">
+                            <label>ID:</label>
+                            <input class="text-center" data-op="id" type="text" disabled>
+                        </div>
+                        <div class="twelve wide field">
+                            <label>Name:</label>
+                            <input data-op="name" type="text">
+                        </div>
+                    </div>
+                    <h3 class="ui header" style="margin-bottom: 0.5em; margin-top: 0;">Primary filter configuration</h3>
+                    <div class="two fields">
+                        <div class="field">
+                            <label>Index:</label>
+                            <div class="ui fluid search selection dropdown" data-op="primary-index">
+                                <div class="text"></div>
+                                <i class="dropdown icon"></i>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label>Operation:</label>
+                            <select class="ui fluid search selection dropdown" data-op="primary-operator">
+                                <option value="equals">Equals</option>
+                                <option value="above">Above</option>
+                                <option value="below">Below</option>
+                                <option value="between">Between</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="two fields">
+                        <div class="field">
+                            <label>Value 1:</label>
+                            <div class="ta-wrapper" style="height: initial;">
+                                <input class="ta-area" data-op="primary" type="text" placeholder="Primary AST expression">
+                                <div data-op="primary-content" class="ta-content" style="width: 100%; margin-top: -2em; margin-left: 1em;"></div>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label>Value 2:</label>
+                            <div class="ta-wrapper" style="height: initial;">
+                                <input class="ta-area" data-op="primary-2" type="text" placeholder="Primary AST expression (optional)">
+                                <div data-op="primary-content-2" class="ta-content" style="width: 100%; margin-top: -2em; margin-left: 1em;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <h3 class="ui header" style="margin-bottom: 0.5em; margin-top: 0;">Secondary filter configuration</h3>
+                    <div class="field">
+                        <label>Secondary filter:</label>
+                        <div class="ta-wrapper">
+                            <input class="ta-area" data-op="secondary" type="text" placeholder="Secondary AST expression">
+                            <div data-op="secondary-content" class="ta-content" style="width: 100%; margin-top: -2em; margin-left: 1em;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui three fluid buttons">
+                    <button class="ui black fluid button" data-op="cancel">Cancel</button>
+                    <button class="ui fluid button" style="background-color: orange; color: black;" data-op="save">Save</button>
+                </div>
+            </div>
+        `;
+    }
+
+    _createBindings () {
+        this.$id = this.$parent.find('[data-op="id"]');
+        this.$name = this.$parent.find('[data-op="name"]');
+
+        // Secondary filter
+        this.$secondary = this.$parent.find('[data-op="secondary"]');
+        this.$secondaryContent = this.$parent.find('[data-op="secondary-content"]');
+
+        this.$secondary.on('change input', (e) => {
+            this.$secondaryContent.html(Expression.format($(e.currentTarget).val() || '', undefined, PROFILES_PROPS));
+        });
+
+        // Primary filter
+        this.$primaryIndex = this.$parent.find('[data-op="primary-index"]');
+        this.$primaryOperator = this.$parent.find('[data-op="primary-operator"]');
+        this.$primary = this.$parent.find('[data-op="primary"]');
+        this.$primaryContent = this.$parent.find('[data-op="primary-content"]');
+        this.$primary2 = this.$parent.find('[data-op="primary-2"]');
+        this.$primaryContent2 = this.$parent.find('[data-op="primary-content-2"]');
+
+        this.$primary.on('change input', (e) => {
+            this.$primaryContent.html(Expression.format($(e.currentTarget).val() || ''));
+        });
+
+        this.$primary2.on('change input', (e) => {
+            this.$primaryContent2.html(Expression.format($(e.currentTarget).val() || ''));
+        });
+
+        this.$primaryIndex.dropdown({
+            values: ['none', ...PROFILES_INDEXES].map(v => {
+                return {
+                    name: v.charAt(0).toUpperCase() + v.slice(1),
+                    value: v,
+                    selected: v === 'none'
+                };
+            })
+        }).dropdown('setting', 'onChange', (value, text) => {
+            if (value === 'none') {
+                this.$primaryOperator.closest('.field').addClass('disabled');
+                this.$primary.val('').trigger('change').closest('.field').addClass('disabled');
+                this.$primary2.val('').trigger('change').closest('.field').addClass('disabled');
+            } else {
+                this.$primaryOperator.closest('.field').removeClass('disabled');
+                this.$primary.closest('.field').removeClass('disabled');
+                if (this.$primaryOperator.dropdown('get value') === 'between') {
+                    this.$primary2.closest('.field').removeClass('disabled');
+                }
+            }
+        }).dropdown('set selected', 'none');
+
+        this.$primaryOperator.dropdown('setting', 'onChange', (value, text) => {
+            if (value === 'between') {
+                this.$primary2.closest('.field').removeClass('disabled');
+            } else {
+                this.$primary2.closest('.field').addClass('disabled');
+            }
+        }).dropdown('set selected', 'equals');
+
+        this.$parent.find('[data-op="cancel"]').click(() => {
+            this.close();
+        });
+
+        this.$parent.find('[data-op="save"]').click(() => {
+            const primaryName = this.$primaryIndex.dropdown('get value');
+            const primaryMode = this.$primaryOperator.dropdown('get value');
+            const primaryValue = this.$primary.val();
+            const primaryValue2 = this.$primary2.val();
+
+            ProfileManager.setProfile(this.id, Object.assign(this.profile || {}, {
+                name: this.$name.val(),
+                primary: primaryName === 'none' ? null : {
+                    name: primaryName,
+                    mode: primaryMode,
+                    value: primaryMode === 'between' ? [ primaryValue, primaryValue2 ] : [ primaryValue ]
+                },
+                secondary: this.$secondary.val()
+            }));
+            this.close();
+            this.callback();
+        });
+    }
+
+    _applyArguments (callback, id) {
+        this.callback = callback;
+        this.id = id || SHA1(String(Date.now())).slice(0, 4);
+        this.profile = undefined;
+
+        if (id) {
+            this.profile = ProfileManager.getProfile(id);
+
+            const { name, primary, secondary } = this.profile;
+            this.$id.val(id);
+
+            if (primary) {
+                const { mode, name, value } = primary;
+
+                this.$primaryIndex.dropdown('set selected', name);
+                this.$primaryOperator.dropdown('set selected', mode);
+                this.$primary.val(value[0] || '').trigger('change');
+                this.$primary2.val(value[1] || '').trigger('change');
+            } else {
+                this.$primaryIndex.dropdown('set selected', 'none');
+                this.$primaryOperator.dropdown('set selected', 'equals');
+                this.$primary.val('').trigger('change');
+                this.$primary2.val('').trigger('change');
+            }
+
+            this.$secondary.val(secondary).trigger('change');
+            this.$name.val(name);
+        } else {
+            this.$id.val(this.id);
+            this.$primaryIndex.dropdown('set selected', 'none');
+            this.$primaryOperator.dropdown('set selected', 'equals');
+            this.$primary.val('').trigger('change');
+            this.$primary2.val('').trigger('change');
+            this.$secondary.val('').trigger('change');
+            this.$name.val('');
+        }
+    }
+})();
 
 // Automatically open Terms and Conditions if not accepted yet
-document.addEventListener("DOMContentLoaded", function() {
-    if (!SiteOptions.terms_accepted) {
-        PopupController.open(TermsAndConditionsPopup);
-    }
+window.addEventListener('load', function() {
+    if (PreferencesHandler._isAccessible()) {
+        if (!SiteOptions.terms_accepted) {
+            PopupController.open(TermsAndConditionsPopup);
+        }
 
-    if (SiteOptions.version_accepted != MODULE_VERSION) {
-        PopupController.open(ChangeLogPopup);
-    }
-
-    if (!SiteOptions.beta_over) {
-        PopupController.open(BetaOverPopup);
+        if (SiteOptions.version_accepted != MODULE_VERSION) {
+            PopupController.open(ChangeLogPopup);
+        }
     }
 });

@@ -19,7 +19,6 @@
         <script src="vendor/js/semantic.min.js"></script>
         <script src="vendor/js/sentry.bundle.min.js"></script>
 
-        <script src="js/plugins.js"></script>
         <script src="js/enum.js"></script>
         <script src="js/util.js"></script>
         <script src="js/lang.js"></script>
@@ -28,6 +27,7 @@
         <script src="js/core/util.js"></script>
         <script src="js/core/playa.js"></script>
         <script src="js/core/core.js"></script>
+        <script src="js/plugins.js"></script>
         <script src="js/core/idb.js"></script>
         <script src="js/sim/players.js"></script>
         <script src="js/core/ast.js"></script>
@@ -51,6 +51,7 @@
             <a class="item" id="show-browse"><i class="small database icon"></i>Browse</a>
             <a class="item" id="show-settings"><i class="small edit icon"></i>Scripts</a>
             <a class="item" id="show-files"><i class="small folder open icon"></i>Files</a>
+            <a class="item" id="show-options"><i class="small cog icon"></i>Settings</a>
             <div class="right menu" id="show-right-menu">
                 <a class="item" href="stats.html?temp" target="_blank"><i class="small user secret icon"></i>Temporary session</a>
                 <a class="item" id="show-changelog"><i class="small sticky note icon"></i>Changelog</a>
@@ -94,36 +95,45 @@
                     </div>
                 </div>
                 <div class="ten wide column">
-                    <table class="ui compact fixed table" data-op="advanced-center" style="margin-top: 0;">
-                        <thead>
-                            <tr>
-                                <th class="clickable text-center" data-op="mark-all"><i class="adjust icon"></i></th>
-                                <th style="width: 20%;" class="text-center">Timestamp</th>
-                                <th style="width: 15%;" class="text-center">Prefix</th>
-                                <th style="width: 20%;">Name</th>
-                                <th style="width: 20%;" class="text-center">Group</th>
-                                <th style="width: 15%;" class="text-center">Origin</th>
-                            </tr>
-                        </thead>
-                        <tbody data-op="files-search-results">
+                    <div data-op="advanced-center">
+                        <table class="ui compact fixed table" data-op="advanced-center" style="margin-top: 0;">
+                            <thead>
+                                <tr>
+                                    <th class="clickable text-center" data-op="mark-all"><i class="adjust icon"></i></th>
+                                    <th style="width: 20%;" class="text-center">Timestamp</th>
+                                    <th style="width: 15%;" class="text-center">Prefix</th>
+                                    <th style="width: 20%;">Name</th>
+                                    <th style="width: 20%;" class="text-center">Group</th>
+                                    <th style="width: 15%;" class="text-center">Origin</th>
+                                </tr>
+                            </thead>
+                            <tbody data-op="files-search-results">
 
-                        </tbody>
-                    </table>
-                    <table class="ui compact fixed table" data-op="simple-center" style="margin-top: 0;">
-                        <thead>
-                            <tr>
-                                <th class="clickable text-center" data-op="mark-all"><i class="adjust icon"></i></th>
-                                <th style="width: 20%;" class="text-center">Timestamp</th>
-                                <th style="width: 15%;" class="text-center">Players</th>
-                                <th style="width: 20%;">Groups</th>
-                                <th style="width: 20%;" class="text-center">Version</th>
-                                <th style="width: 15%;" class="text-center">Origin</th>
-                            </tr>
-                        </thead>
-                        <tbody data-op="files-search-results-simple">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div data-op="simple-center">
+                        <div data-op="simple-tags" style="margin-bottom: 1rem;">
 
-                        </tbody>
-                    </table>
+                        </div>
+                        <table class="ui compact fixed table" data-op="simple-center" style="margin-top: 0;">
+                            <thead>
+                                <tr>
+                                    <th class="clickable text-center" data-op="mark-all"><i class="adjust icon"></i></th>
+                                    <th style="width: 20%;" class="text-center">Timestamp</th>
+                                    <th style="width: 10%;" class="text-center">Players</th>
+                                    <th style="width: 10%;" class="text-center">Groups</th>
+                                    <th style="width: 15%;">Tag</th>
+                                    <th style="width: 15%;" class="text-center">Version</th>
+                                    <th style="width: 15%;" class="text-center">Origin</th>
+                                    <th style="width: 5%;"></th>
+                                </tr>
+                            </thead>
+                            <tbody data-op="files-search-results-simple">
+
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
                 <div class="three wide column">
                     <div class="ui segment">
@@ -167,6 +177,16 @@
                                 </button>
                             </div>
                         </div>
+                        <div class="sf-margin top-05">
+                            <div class="ui fluid two buttons">
+                                <label class="fluid ui secondary basic button sf-margin top-05" data-op="hide">
+                                    <i class="small eye slash outline outline icon"></i> Hide
+                                </label>
+                                <label class="fluid ui secondary basic button sf-margin top-05" data-op="tags">
+                                    <i class="small tags icon"></i> Tags
+                                </label>
+                            </div>
+                        </div>
                         <!-- MERGE -->
                         <label class="fluid ui secondary basic button sf-margin top-05" data-op="merge">
                             <i class="small clone outline icon"></i> Merge selected
@@ -181,26 +201,14 @@
                             <i class="small trash alternate outline icon"></i> Delete all
                         </label>
                         <br/>
-                        <h3 class="ui centered header">Configuration</h3>
+                        <h3 class="ui centered header">File options</h3>
                         <div class="ui checkbox sf-margin left-20 top-05" data-op="checkbox-advanced">
                             <input type="checkbox">
                             <label>Show advanced file list</label>
                         </div>
-                        <div class="ui checkbox sf-margin left-20 top-05" data-op="checkbox-alwaysprev">
+                        <div class="ui checkbox sf-margin left-20 top-05" data-op="checkbox-hidden">
                             <input type="checkbox">
-                            <label>Compare previous</label>
-                        </div>
-                        <div class="ui checkbox sf-margin left-20 top-05" data-op="checkbox-obfuscated">
-                            <input type="checkbox">
-                            <label>Obfuscate player names</label>
-                        </div>
-                        <div class="ui checkbox sf-margin left-20 top-05" data-op="checkbox-insecure">
-                            <input type="checkbox">
-                            <label>Allow restricted tags</label>
-                        </div>
-                        <div class="ui checkbox sf-margin left-20 top-05" data-op="checkbox-terms">
-                            <input type="checkbox">
-                            <label>Accept Terms of Service</label>
+                            <label>Show hidden players</label>
                         </div>
                     </div>
                 </div>
@@ -347,6 +355,12 @@
                 <div class="ui checkbox" data-op="hidden">
                     <input type="checkbox">
                     <label>Show hidden</label>
+                </div>
+            </div>
+            <div class="css-show-empty">
+                <div class="ui checkbox" data-op="empty">
+                    <input type="checkbox">
+                    <label>Show empty</label>
                 </div>
             </div>
         </div>
@@ -646,44 +660,101 @@
             </div>
         </div>
 
+        <!-- OptionsView -->
+        <div id="view-options" class="ui main container css-hidden sf-container">
+            <div class="ui grid">
+                <div class="six wide column">
+                    <div class="ui segment">
+                        <h3 class="ui centered header">Global configuration</h3>
+                        <div class="ui checkbox sf-margin left-20 top-05" data-op="checkbox-alwaysprev">
+                            <input type="checkbox">
+                            <label>Compare previous (guilds)</label>
+                        </div>
+                        <br/>
+                        <div class="ui checkbox sf-margin left-20 top-05" data-op="checkbox-obfuscated">
+                            <input type="checkbox">
+                            <label>Obfuscate player names</label>
+                        </div>
+                        <br/>
+                        <div class="ui checkbox sf-margin left-20 top-05" data-op="checkbox-insecure">
+                            <input type="checkbox">
+                            <label>Allow restricted tags</label>
+                        </div>
+                        <br/>
+                        <div class="ui checkbox sf-margin left-20 top-05" data-op="checkbox-terms">
+                            <input type="checkbox">
+                            <label>Accept Terms of Service</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="ten wide column">
+                    <div class="ui segment">
+                        <h3 class="ui centered header">Actions</h3>
+                        <div class="ui info message">
+                            <div class="header">
+                                Soon-to-be available actions:
+                            </div>
+                            <ul class="list">
+                                <li><b>Triggers:</b> Import, Load</li>
+                                <li><b>Actions:</b> Tag, Merge, Modify timestamp, Remove, Duplicate</li>
+                                <li><b>Modes:</b> Apply to player, Apply to file</li>
+                            </ul>
+                            <p><b>Example:</b></p>
+                            <ul class="list">
+                                <li>After load, remove all files coming from dungeon simulator that are older than 1 week</li>
+                                <li>After import, tag all files that are from W27</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- UI Handler -->
         <script type="text/javascript">
-            let params = parseParams(window.location.href);
-            let param_temporary = params['temp'] == -1;
-            let param_profile = params['profile'];
-            let param_slot = params['slot'];
+            window.addEventListener('load', function() {
+                let params = parseParams(window.location.href);
+                let param_temporary = params['temp'] == -1;
+                let param_profile = params['profile'];
+                let param_slot = params['slot'];
 
-            if (param_temporary) {
-                $('.css-temporary').removeClass('css-hidden');
-            }
+                if (param_temporary) {
+                    $('.css-temporary').removeClass('css-hidden');
+                }
 
-            let profile = ProfileManager.getProfile(param_profile);
-            if (param_temporary) {
-                Preferences.temporary();
-                $('#show-profile').addClass('profiles-disabled');
-                profile = {
-                    temporary: true
-                };
-            } else if (param_slot) {
-                profile['slot'] = param_slot;
-            }
+                if (param_profile) {
+                    $('#show-profile').addClass('profiles-disabled');
+                }
 
-            PopupController.open(LoaderPopup);
-            DatabaseManager.load(profile).then(function () {
-                UI.initialize();
-                UI.register(UI.Players, 'show-players');
-                UI.register(UI.Groups, 'show-groups');
-                UI.register(UI.Browse, 'show-browse');
-                UI.register(UI.Files, 'show-files');
-                UI.register(UI.Settings, 'show-settings');
-                UI.register(UI.ChangeLogs, 'show-changelog');
-                UI.register(UI.Profiles, 'show-profile');
-                PopupController.close(LoaderPopup);
-                UI.show(UI.Groups);
-            }).catch(function (e) {
-                PopupController.close(LoaderPopup);
-                PopupController.open(ErrorPopup, `<h4 class="ui white header text-center">Your browser does not support all features required by this page!</br>This issue can be also caused by use of private mode.</h4><br>${e.message}`);
-                Logger.error(e, 'Database could not be opened!');
+                let profile = ProfileManager.getProfile(param_profile);
+                if (param_temporary) {
+                    Preferences.temporary();
+                    $('#show-profile').addClass('profiles-disabled');
+                    profile = {
+                        temporary: true
+                    };
+                } else if (param_slot) {
+                    profile['slot'] = param_slot;
+                }
+
+                PopupController.open(LoaderPopup);
+                DatabaseManager.load(profile).then(function () {
+                    UI.initialize();
+                    UI.register(UI.Players, 'show-players');
+                    UI.register(UI.Groups, 'show-groups');
+                    UI.register(UI.Browse, 'show-browse');
+                    UI.register(UI.Files, 'show-files');
+                    UI.register(UI.Settings, 'show-settings');
+                    UI.register(UI.ChangeLogs, 'show-changelog');
+                    UI.register(UI.Profiles, 'show-profile');
+                    UI.register(UI.Options, 'show-options');
+                    PopupController.close(LoaderPopup);
+                    UI.show(UI.Groups);
+                }).catch(function (e) {
+                    PopupController.close(LoaderPopup);
+                    PopupController.open(ErrorPopup, `<h4 class="ui white header text-center">Your browser does not support all features required by this page!</br>This issue can be also caused by use of private mode.</h4><br>${e.message}`);
+                    Logger.error(e, 'Database could not be opened!');
+                });
             });
         </script>
     </body>
