@@ -841,6 +841,14 @@ class Expression {
         }
     }
 
+    evalToSimpleArray (array) {
+        if (array.segmented) {
+            return array.map(v => v[0]);
+        } else {
+            return array;
+        }
+    }
+
     evalMappedArray (obj, arg, loop_index, mapper, segmented, scope) {
         if (mapper) {
             if (segmented) {
@@ -917,12 +925,13 @@ class Expression {
                     return values;
                 } else if (['each', 'filter', 'map'].includes(node.op) && node.args.length == 2) {
                     // Multiple array functions condensed
-                    var array = this.evalToArray(scope, node.args[0]);
-                    var mapper = scope.env.functions[node.args[1]];
-                    var values = new Array(array.length);
+                    const array = this.evalToArray(scope, node.args[0]);
+                    const mapper = scope.env.functions[node.args[1]];
+                    const values = new Array(array.length);
+                    const scope2 = scope.copy().addSelf(this.evalToSimpleArray(array));
 
                     for (let i = 0; i < array.length; i++) {
-                        values[i] = this.evalMappedArray(array[i], node.args[1], i, mapper, array.segmented, scope);
+                        values[i] = this.evalMappedArray(array[i], node.args[1], i, mapper, array.segmented, scope2);
                     }
 
                     // Return correct result
@@ -933,12 +942,12 @@ class Expression {
                     }
                 } else if (['some', 'all'].includes(node.op) && node.args.length == 2) {
                     const inverted = node.op === 'some';
-
                     const array = this.evalToArray(scope, node.args[0]);
                     const mapper = scope.env.functions[node.args[1]];
+                    const scope2 = scope.copy().addSelf(this.evalToSimpleArray(array));
 
                     for (let i = 0; i < array.length; i++) {
-                        if (inverted == this.evalMappedArray(array[i], node.args[1], i, mapper, array.segmented, scope)) {
+                        if (inverted == this.evalMappedArray(array[i], node.args[1], i, mapper, array.segmented, scope2)) {
                             return inverted;
                         }
                     }
@@ -1062,13 +1071,13 @@ class Expression {
                 return scope.player;
             } else if (node == 'reference') {
                 // Return reference player
-                return scope.pr;
+                return scope.reference;
             } else if (node == 'database') {
                 // Return database
                 return DatabaseManager;
             } else if (node == 'entries') {
                 if (scope.player) {
-                    return DatabaseManager.getPlayer(player.Identifier).List.map(([ t, e ]) => e);
+                    return DatabaseManager.getPlayer(scope.player.Identifier).List.map(([ t, e ]) => e);
                 } else {
                     return undefined;
                 }
@@ -1098,7 +1107,7 @@ class Expression {
                 return SP_KEYWORDS_DEFAULT[node];
             } else if (scope.player && SP_KEYWORDS.hasOwnProperty(node)) {
                 return SP_KEYWORDS[node].expr(scope.player, scope.reference, scope.env);
-            } else if (scope.player && SP_KEYWORDS_INDIRECT.hasOwnProperty(node)) {
+            } else if (SP_KEYWORDS_INDIRECT.hasOwnProperty(node)) {
                 return SP_KEYWORDS_INDIRECT[node].expr(scope.player, scope.reference, scope.env, scope.getSelf());
             } else if (scope && scope.has(node)) {
                 return scope.get(node);
@@ -3027,11 +3036,15 @@ const SP_KEYWORD_MAPPING_4 = {
     },
     'Item Attribute': {
         expr: (p, c, e, i) => {
-            switch (p.Primary.Type) {
-                case 1: return i.Strength.Value;
-                case 2: return i.Dexterity.Value;
-                case 3: return i.Intelligence.Value;
-                default: return 0;
+            if (p) {
+                switch (p.Primary.Type) {
+                    case 1: return i.Strength.Value;
+                    case 2: return i.Dexterity.Value;
+                    case 3: return i.Intelligence.Value;
+                    default: return 0;
+                }
+            } else {
+                return 0;
             }
         },
         format: (p, c, e, x) => x == 0 ? '' : x
@@ -3097,7 +3110,7 @@ const SP_KEYWORD_MAPPING_4 = {
     },
     'Item Slot': {
         expr: (p, c, e, i) => i.Slot,
-        format: (p, c, e, x) => x == 2 && p.Class == 4 ? ITEM_TYPES[1] : ITEM_TYPES[x],
+        format: (p, c, e, x) => x == 2 && p && p.Class == 4 ? ITEM_TYPES[1] : ITEM_TYPES[x],
         difference: false
     },
     'Potion Type': {
