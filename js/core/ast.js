@@ -56,7 +56,6 @@ class ExpressionScope {
         let _copy = new ExpressionScope(this.env);
         _copy.self = [ ... this.self ];
         _copy.indirect = [ ... this.indirect ];
-        _copy.tags = [ ... this.tags ];
         _copy.player = this.player;
         _copy.reference = this.reference;
         _copy.header = this.header;
@@ -75,7 +74,6 @@ class ExpressionScope {
     constructor (env) {
         this.self = [];
         this.indirect = [];
-        this.tags = [];
         this.env = env || { functions: { }, variables: { }, constants: Constants.DEFAULT, lists: { }, env_id: RandomSHA() };
     }
 
@@ -100,10 +98,9 @@ class ExpressionScope {
         return this;
     }
 
-    add (obj, tag = null) {
+    add (obj) {
         if (obj != undefined) {
             this.indirect.unshift(obj);
-            this.tags.unshift(tag);
         }
         return this;
     }
@@ -238,7 +235,7 @@ class Expression {
                     value = SFormat.Reserved(token);
                 } else if (SP_FUNCTIONS.hasOwnProperty(token) || SP_ARRAY_FUNCTIONS.hasOwnProperty(token) || ['each', 'map', 'filter', 'format', 'difference', 'difference', 'sort', 'var', 'tracker', 'some', 'all' ].includes(token) || root.functions.hasOwnProperty(token)) {
                     value = SFormat.Function(token);
-                } else if (['undefined', 'null', 'player', 'reference', 'joined', 'kicked', 'true', 'false', 'index', 'database', 'row_index', 'classes', 'header', 'entries', 'loop_index', 'table_timestamp', 'table_reference' ].includes(token) || root.variables.hasOwnProperty(token)) {
+                } else if (['undefined', 'null', 'player', 'reference', 'joined', 'kicked', 'true', 'false', 'index', 'database', 'row_index', 'classes', 'header', 'entries', 'loop_index', 'loop_array', 'table_timestamp', 'table_reference' ].includes(token) || root.variables.hasOwnProperty(token)) {
                     value = SFormat.Constant(token);
                 } else if (/(\.*)this/.test(token)) {
                     value = SFormat.Constant(token);
@@ -841,26 +838,18 @@ class Expression {
         }
     }
 
-    evalToSimpleArray (array) {
-        if (array.segmented) {
-            return array.map(v => v[0]);
-        } else {
-            return array;
-        }
-    }
-
-    evalMappedArray (obj, arg, loop_index, mapper, segmented, scope) {
+    evalMappedArray (obj, arg, loop_index, loop_array, mapper, segmented, scope) {
         if (mapper) {
             if (segmented) {
-                return scope.copy().with(obj[0], obj[1]).addSelf(obj[0]).add(mapper.args.reduce((c, a, i) => { c[a] = obj[i]; return c; }, {})).add({ loop_index }).eval(mapper.ast);
+                return scope.copy().with(obj[0], obj[1]).addSelf(obj[0]).add(mapper.args.reduce((c, a, i) => { c[a] = obj[i]; return c; }, {})).add({ loop_index, loop_array }).eval(mapper.ast);
             } else {
-                return scope.copy().addSelf(obj).add(mapper.args.reduce((c, a) => { c[a] = obj; return c; }, {})).add({ loop_index }).eval(mapper.ast);
+                return scope.copy().addSelf(obj).add(mapper.args.reduce((c, a) => { c[a] = obj; return c; }, {})).add({ loop_index, loop_array }).eval(mapper.ast);
             }
         } else {
             if (segmented) {
-                return this.evalInternal(scope.copy().with(obj[0], obj[1]).addSelf(obj[0]).add({ loop_index }), arg);
+                return this.evalInternal(scope.copy().with(obj[0], obj[1]).addSelf(obj[0]).add({ loop_index, loop_array }), arg);
             } else {
-                return this.evalInternal(scope.copy().addSelf(obj).add({ loop_index }), arg);
+                return this.evalInternal(scope.copy().addSelf(obj).add({ loop_index, loop_array }), arg);
             }
         }
     }
@@ -881,62 +870,37 @@ class Expression {
                     return str;
                 } else if (node.op == 'sort' && node.args.length == 2) {
                     // Multiple array functions condensed
-                    var array = this.evalToArray(scope, node.args[0]);
-                    var mapper = scope.env.functions[node.args[1]];
-                    var values = [];
+                    const array = this.evalToArray(scope, node.args[0]);
+                    const mapper = scope.env.functions[node.args[1]];
+                    let values = new Array(array.length);
 
-                    if (mapper) {
-                        if (array.segmented) {
-                            values = array.map((obj, i) => {
-                                return {
-                                    key: scope.copy().with(obj[0], obj[1]).addSelf(obj[0]).add(mapper.args.reduce((c, a, i) => { c[a] = obj[i]; return c; }, {})).add({ loop_index: i }).eval(mapper.ast),
-                                    val: obj
-                                };
-                            });
-                        } else {
-                            values = array.map((obj, i) => {
-                                return {
-                                    key: scope.copy().with(player, reference).addSelf(obj).add(mapper.args.reduce((c, a) => { c[a] = obj; return c; }, {})).add({ loop_index: i }).eval(mapper.ast),
-                                    val: obj
-                                };
-                            });
-                        }
-                    } else {
-                        if (array.segmented) {
-                            values = array.map((obj, i) => {
-                                return {
-                                    key: this.evalInternal(scope.copy().with(obj[0], obj[1]).addSelf(obj[0]).add({ loop_index: i }), node.args[1]),
-                                    val: obj
-                                };
-                            });
-                        } else {
-                            values = array.map((obj, i) => {
-                                return {
-                                    key: this.evalInternal(scope.copy().addSelf(obj).add({ loop_index: i }), node.args[1]),
-                                    val: obj
-                                };
-                            });
-                        }
+                    for (let i = 0; i < array.length; i++) {
+                        values[i] = {
+                            key: this.evalMappedArray(array[i], node.args[1], i, array, mapper, array.segmented, scope),
+                            val: array[i]
+                        };
                     }
 
                     values = values.sort((a, b) => b.key - a.key).map((a) => a.val);
                     values.segmented = array.segmented;
 
                     return values;
-                } else if (['each', 'filter', 'map'].includes(node.op) && node.args.length == 2) {
+                } else if (['each', 'filter', 'map'].includes(node.op) && (node.args.length == 2 || (node.op == 'each' && node.args.length == 3))) {
                     // Multiple array functions condensed
                     const array = this.evalToArray(scope, node.args[0]);
                     const mapper = scope.env.functions[node.args[1]];
                     const values = new Array(array.length);
-                    const scope2 = scope.copy().addSelf(this.evalToSimpleArray(array));
 
                     for (let i = 0; i < array.length; i++) {
-                        values[i] = this.evalMappedArray(array[i], node.args[1], i, mapper, array.segmented, scope2);
+                        values[i] = this.evalMappedArray(array[i], node.args[1], i, array, mapper, array.segmented, scope);
                     }
 
                     // Return correct result
                     switch (node.op) {
-                        case 'each': return values.reduce((a, b) => a + b, 0);
+                        case 'each': {
+                            const def = this.evalInternal(scope, node.args[2]) || (typeof values[0] === 'number' ? 0 : '');
+                            return values.reduce((a, b) => a + b, def);
+                        }
                         case 'filter': return array.filter((a, i) => values[i]);
                         case 'map': return values;
                     }
@@ -944,10 +908,9 @@ class Expression {
                     const inverted = node.op === 'some';
                     const array = this.evalToArray(scope, node.args[0]);
                     const mapper = scope.env.functions[node.args[1]];
-                    const scope2 = scope.copy().addSelf(this.evalToSimpleArray(array));
 
                     for (let i = 0; i < array.length; i++) {
-                        if (inverted == this.evalMappedArray(array[i], node.args[1], i, mapper, array.segmented, scope2)) {
+                        if (inverted == this.evalMappedArray(array[i], node.args[1], i, array, mapper, array.segmented, scope)) {
                             return inverted;
                         }
                     }
@@ -989,7 +952,7 @@ class Expression {
                         scope2[mapper.args[i]] = this.evalInternal(scope, node.args[i]);
                     }
 
-                    return scope.copy().add(scope2, mapper.ast.rstr).eval(mapper.ast);
+                    return scope.copy().add(scope2).eval(mapper.ast);
                 } else if (node.op == 'difference' && node.args.length == 1) {
                     var a = this.evalInternal(scope, node.args[0]);
                     var b = this.evalInternal(scope.copy().with(scope.reference, scope.reference), node.args[0]);

@@ -62,8 +62,8 @@
                     const success = typeof op === 'function' ? op() : op;
                     $('#test-list').append(`
                         <tr style="line-height: 0.75em;">
-                            <td style="width: 5%; text-align: center;">${ i += 1 }</td>
-                            <td style="width: 10%; font-weight: bold; text-align: center; ${ success ? 'background-color: #2d9150; color: white;' : 'background-color: #9e192b; color: white;' }">${ success ? 'OK' : 'Failed' }</td>
+                            <td style="text-align: center;">${ i += 1 }</td>
+                            <td style="font-weight: bold; text-align: center; ${ success ? 'background-color: #2d9150; color: white;' : 'background-color: #9e192b; color: white;' }">${ success ? 'OK' : 'Failed' }</td>
                             <td style="padding-left: 2em;">${ name }</td>
                         </tr>
                     `);
@@ -96,7 +96,7 @@
                 test('scoped this', new Expression('this').eval(new ExpressionScope().addSelf(55)) == 55);
                 test('each this', new Expression('each([0, 1, 2], 3 * this)').eval() == 9);
                 test('each loop_index', new Expression('each([0, 1, 2], loop_index)').eval() == 3);
-                test('this traversal', new Expression('each([0, 1, 2], len(.this) * this)').eval() == 9);
+                test('this traversal', new Expression('each([0, 1, 2], len(loop_array) * this)').eval() == 9);
                 test('this traversal 2', new Expression('each(this, len(.this))').eval(new ExpressionScope().addSelf([0, 1, 2])) == 9);
                 test('constants', new Expression('@none').eval() == 0);
                 test('inverts', new Expression('!!!false'));
@@ -122,6 +122,8 @@
                 test('player direct', new Expression('player.Book').eval(new ExpressionScope().with({ Book: 1000 })) == 1000);
                 test('table timestamp', new Expression('table_timestamp').eval(new ExpressionScope({ timestamp: 1000 })) == 1000);
                 test('random not equal', new Expression('random() != random()').eval());
+                test('sort numbers', new Expression('sort([0, 4, 7, 2, 5], -this).1').eval() == 2);
+                test('header difference', new Expression('difference(Level)').eval(new ExpressionScope().with({ Level: 200 }, { Level: 100 })) == 100);
             });
         </script>
     </body>
