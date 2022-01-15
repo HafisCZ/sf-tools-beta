@@ -883,37 +883,25 @@ class FightSimulator {
     }
 
     setRandomInitialFighter () {
-        let aBersi = this.a.Player.Class == BERSERKER;
-        let aFirst = this.a.AttackFirst;
-        let bBersi = this.b.Player.Class == BERSERKER;
-        let bFirst = this.b.AttackFirst;
-
-        let aRoll = (aFirst ? 1 : 0) + (aBersi ? 1 : 0);
-        let bRoll = (bFirst ? 1 : 0) + (bBersi ? 1 : 0);
-
-        if (aRoll == bRoll) {
-            if (getRandom(50)) {
-                this.swap();
-            }
-        } else if (aBersi && bBersi) {
-            if (getRandom((bFirst ? 2 : 1) * 100 / 3)) {
-                this.swap();
-            }
-        } else if (aBersi || bBersi) {
-            if (Math.abs(bRoll - aRoll) == 2) {
-                if (bRoll) {
-                    this.swap();
-                }
-            } else if (getRandom(bRoll > aRoll ? 75 : 25)) {
-                this.swap();
-            }
-        } else if (bFirst) {
-            this.swap();
+        if (this.a.AttackFirst == this.b.AttackFirst ? getRandom(50) : this.b.AttackFirst) {
+            [this.a, this.b] = [this.b, this.a];
         }
     }
 
-    swap () {
-        [this.a, this.b] = [this.b, this.a];
+    forwardToBersekerAttack () {
+        if (this.b.Player.Class == BERSERKER && this.a.AttackFirst && getRandom(50)) {
+            this.rage += 1; // Evade normal attack
+
+            if (this.a.Player.Class == ASSASSIN) {
+                this.rage += 1; // Evade second  attacks
+            } else if (this.a.Player.Class == BERSERKER) {
+                while (getRandom(50)) {
+                    this.rage += 2; // Evade all chained attacks
+                }
+            }
+
+            [this.a, this.b] = [this.b, this.a];
+        }
     }
 
     // Fight
@@ -1020,6 +1008,7 @@ class FightSimulator {
         }
 
         this.setRandomInitialFighter();
+        this.forwardToBersekerAttack();
 
         // Simulation
         while (this.a.Health > 0 && this.b.Health > 0) {
