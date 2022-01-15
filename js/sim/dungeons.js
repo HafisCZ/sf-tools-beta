@@ -32,17 +32,6 @@ const BERSERKER = 6;
 const DEMONHUNTER = 7;
 const DRUID = 8;
 
-const ClassMap = {
-    1: 'Warrior',
-    2: 'Mage',
-    3: 'Scout',
-    4: 'Assassin',
-    5: 'Battle Mage',
-    6: 'Berserker',
-    7: 'Demon Hunter',
-    8: 'Druid'
-};
-
 class FighterModel {
     static create (index, player) {
         switch (player.Class) {
@@ -443,6 +432,7 @@ self.addEventListener('message', function (message) {
     let players = message.data.players;
     let boss = message.data.boss;
     let index = message.data.index;
+    let hpcap = message.data.hpcap || 5000;
     let iterations = message.data.iterations || 100000;
     if (message.data.log || false) {
         FIGHT_DUMP_ENABLED = true;
@@ -451,7 +441,7 @@ self.addEventListener('message', function (message) {
     if (players && boss) {
         self.postMessage({
             command: 'finished',
-            results: new DungeonSimulator().simulate(players, boss, iterations),
+            results: new DungeonSimulator().simulate(players, boss, iterations, hpcap),
             log: FIGHT_DUMP_OUTPUT,
             index: index
         });
@@ -461,7 +451,7 @@ self.addEventListener('message', function (message) {
 });
 
 class DungeonSimulator {
-    simulate (players, boss, iterations) {
+    simulate (players, boss, iterations, hpcap) {
         this.cache(players, boss);
 
         let score = 0;
@@ -472,6 +462,37 @@ class DungeonSimulator {
 
             score += win;
             healths.push(health);
+        }
+
+        let healthsLength = healths.length;
+        let truncSteps = Math.max(1, Math.floor(healthsLength / hpcap));
+        if (truncSteps > 1) {
+            let truncLength = Math.ceil(healthsLength / truncSteps);
+            let truncHealths = new Array(truncLength);
+
+            healths.sort((a, b) => a - b);
+
+            for (let i = 0; i < truncLength; i++) {
+                let sliceSum = 0;
+                let slices = 0;
+                for (let j = 0; j < truncSteps; j++) {
+                    let iterator = i * truncSteps + j;
+                    if (iterator >= healthsLength) {
+                        break;
+                    } else {
+                        slices++;
+                        sliceSum += healths[iterator];
+                    }
+                }
+
+                if (slices > 0) {
+                    truncHealths[i] = Math.max(0, sliceSum / slices);
+                }
+            }
+
+            healths = truncHealths;
+        } else {
+            healths.sort((a, b) => a - b);
         }
 
         return {
@@ -521,6 +542,40 @@ class DungeonSimulator {
         };
     }
 
+    setRandomInitialFighter () {
+        let aBersi = this.a.Player.Class == BERSERKER;
+        let aFirst = this.a.AttackFirst;
+        let bBersi = this.b.Player.Class == BERSERKER;
+        let bFirst = this.b.AttackFirst;
+
+        let aRoll = (aFirst ? 1 : 0) + (aBersi ? 1 : 0);
+        let bRoll = (bFirst ? 1 : 0) + (bBersi ? 1 : 0);
+
+        if (aRoll == bRoll) {
+            if (getRandom(50)) {
+                this.swap();
+            }
+        } else if (aBersi && bBersi) {
+            if (getRandom((bFirst ? 2 : 1) * 100 / 3)) {
+                this.swap();
+            }
+        } else if (aBersi || bBersi) {
+            if (Math.abs(bRoll - aRoll) == 2) {
+                if (bRoll) {
+                    this.swap();
+                }
+            } else if (getRandom(bRoll > aRoll ? 75 : 25)) {
+                this.swap();
+            }
+        } else if (bFirst) {
+            this.swap();
+        }
+    }
+
+    swap () {
+        [this.a, this.b] = [this.b, this.a];
+    }
+
     fight () {
         this.turn = 0;
 
@@ -539,9 +594,7 @@ class DungeonSimulator {
             }
         }
 
-        if (this.a.AttackFirst == this.b.AttackFirst ? getRandom(50) : this.b.AttackFirst) {
-            [this.a, this.b] = [this.b, this.a];
-        }
+        this.setRandomInitialFighter();
 
         while (this.a.Health > 0 && this.b.Health > 0) {
             var damage = this.attack(this.a, this.b);

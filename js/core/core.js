@@ -1,7 +1,7 @@
 // Version stuff
-const MODULE_VERSION = 'v5.1785';
+const MODULE_VERSION = 'v5.1922';
 const TABLE_VERSION = 'v9';
-const CORE_VERSION = 'v3';
+const CORE_VERSION = 'v3.1';
 
 const Logger = new (class {
     constructor () {
@@ -121,7 +121,6 @@ const SiteOptions = new (class {
             terms_accepted: false,
             version_accepted: false,
             groups_hidden: false,
-            groups_empty: false,
             players_hidden: false,
             browse_hidden: false,
             groups_other: false,
@@ -129,7 +128,9 @@ const SiteOptions = new (class {
             always_prev: false,
             migration_allowed: true,
             migration_accepted: false,
-            profile: 'default'
+            profile: 'default',
+            groups_empty: false,
+            tab: 'groups'
         };
 
         this.listeners = [];
@@ -171,7 +172,9 @@ const DEFAULT_PROFILE = {
     temporary: false,
     slot: 0,
     primary: null,
-    secondary: null
+    secondary: null,
+    primary_g: null,
+    secondary_g: null
 };
 
 const SELF_PROFILE = {
@@ -191,7 +194,13 @@ const DEFAULT_PROFILE_A = {
         mode: 'equals',
         value: ['1']
     },
-    secondary: null
+    secondary: null,
+    primary_g: {
+        name: 'own',
+        mode: 'equals',
+        value: ['1']
+    },
+    secondary_g: null
 };
 
 const DEFAULT_PROFILE_B = {
@@ -201,16 +210,22 @@ const DEFAULT_PROFILE_B = {
         mode: 'above',
         value: ['now() - 4 * @7days']
     },
-    secondary: null
+    secondary: null,
+    primary_g: {
+        name: 'timestamp',
+        mode: 'above',
+        value: ['now() - 4 * @7days']
+    },
+    secondary_g: null
 };
 
 const ProfileManager = new (class {
     constructor () {
-        this.profiles = Object.assign({
+        this.profiles = Object.assign(Preferences.get('db_profiles', {}), {
             'default': DEFAULT_PROFILE,
             'own': DEFAULT_PROFILE_A,
             'month_old': DEFAULT_PROFILE_B
-        }, Preferences.get('db_profiles', {}));
+        });
     }
 
     isEditable (key) {
@@ -243,95 +258,101 @@ const ProfileManager = new (class {
     }
 
     setProfile (name, profile) {
-        this.profiles[name] = profile;
+        this.profiles[name] = Object.assign(profile, { updated: Date.now() });
         Preferences.set('db_profiles', this.profiles);
     }
 
     getProfiles () {
-        return Object.entries(this.profiles);
+        return [
+            [ 'default', this.profiles['default'] ],
+            [ 'own', this.profiles['own'] ],
+            [ 'month_old', this.profiles['month_old'] ],
+            ..._sort_des(Object.entries(this.profiles).filter(([key, ]) => this.isEditable(key)), ([, val]) => val.updated || 0)
+        ];
     }
 })();
 
-/*
-    Sample action:
-    {
-        name: 'Action 1',
-        trigger: load | import, // when action should be triggered
-        temporary: true | false, // should apply in temporary mode too
-        test: 'timestamp < (now() - @7days)', // condition
-        targets: player | group | file, // player, group and/or file
-        action: 'tag', // what action does
-        args: ['Outdated'] // arguments for the action if necessary
-    }
-*/
+const ACTION_PROPS = ['players', 'groups', 'origin'];
+
 const Actions = new (class {
-    constructor () {
-        this.actions = Preferences.get('actions', {});
+    init () {
+        this.defaultScript = typeof PredefinedTemplates === 'object' ? PredefinedTemplates['Actions'] : '';
+
+        this._loadScript();
+        this._executeScript();
     }
 
-    set (name, action) {
-        this.actions[name] = action;
-        this._save();
+    _loadScript () {
+        this.script = Preferences.get('actions_script', this.defaultScript);
     }
 
-    get (name) {
-        return this.actions[name];
+    _saveScript () {
+        Preferences.set('actions_script', this.script);
     }
 
-    remove (name) {
-        delete this.actions[name];
-        this._save();
+    _executeScript () {
+        this.actions = new Settings(this.script || '', null, EditorType.ACTIONS).actions;
     }
 
-    async apply (actTrigger, ... args) {
-        const pending = [];
-        const temporary = DatabaseManager.Profile.temporary;
+    getScript () {
+        return this.script;
+    }
 
-        for (const action of Object.values(this.actions)) {
-            if (action.trigger == actTrigger && (!temporary || action.temporary)) {
-                pending.push(action);
+    resetScript () {
+        Preferences.remove('actions_script');
+
+        this._loadScript();
+        this._executeScript();
+    }
+
+    setScript (script) {
+        this.script = script;
+        
+        this._saveScript();
+        this._executeScript();
+    }
+
+    async apply (playerData, groupData, origin) {
+        if (_not_empty(this.actions)) {
+            let players = playerData.map(({identifier, timestamp}) => DatabaseManager.getPlayer(identifier, timestamp));
+            let groups = groupData.map(({identifier, timestamp}) => DatabaseManager.getGroup(identifier, timestamp));
+
+            for (const action of this.actions) {
+                Logger.log('ACTIONS', `Applying action ${action.action}`)
+                await this._applyAction(action, players, groups, origin);
             }
         }
-
-        if (_not_empty(pending)) {
-            if (actTrigger === 'load') {
-                const { players, groups } = DatabaseManager._getFile();
-                args = [ players, groups ];
-            }
-
-            for (const action of pending) {
-                await this._applyAction(action, ... args);
-            }
-
-            Logger.log('ACTIONS', `${pending.length} action(s) for event ${actTrigger} applied`);
-        }
     }
 
-    async _applyAction (actionObj, ... actionArgs) {
-        const { trigger, target, test, action, args } = actionObj;
-        const expr = new Expression(test);
+    async _applyAction ({ action, type, args }, players, groups, origin) {
+        if (action == 'tag') {
+            const [tagExpr, conditionExpr] = args;
 
-        if (action === 'tag') {
-            const newTag = args[0];
-            if (target === 'player') {
-                for (const player of actionArgs[0]) {
-                    if (player.tag != newTag && new ExpressionScope().addSelf(player).eval(expr)) {
-                        await DatabaseManager.setTagFor(player.identifier, player.timestamp, newTag);
+            if (type == 'player') {
+                for (const player of players) {
+                    let scope = new ExpressionScope().with(player, player).add({ origin });
+                    if (scope.eval(conditionExpr)) {
+                        let tag = scope.eval(tagExpr);
+                        if (player.Data.tag != tag) {
+                            await DatabaseManager.setTagFor(player.Identifier, player.Timestamp, tag);
+                        }
                     }
                 }
-            } else if (target === 'group') {
-                throw 'target not allowed';
-            } else if (target === 'file') {
-                for (const { timestamp, players, groups } of DatabaseManager._fileize(... actionArgs)) {
-                    if (_any_true(players, p => p.tag != newTag) && new ExpressionScope().addSelf({ players, groups }).eval(expr)) {
-                        await DatabaseManager.setTag([timestamp], newTag);
+            } else if (type == 'file') {
+                let scope = new ExpressionScope().add({ players, groups, origin });
+                if (scope.eval(conditionExpr)) {
+                    const tag = scope.eval(tagExpr);
+                    for (const { Identifier: id, Timestamp: ts, Data: data } of players) {
+                        if (data.tag != tag) {
+                            await DatabaseManager.setTagFor(id, ts, tag);
+                        }
                     }
                 }
+            } else {
+                throw 'Invalid action';
             }
+        } else {
+            throw 'Invalid action';
         }
-    }
-
-    _save () {
-        Preferences.set('actions', this.actions);
     }
 })();

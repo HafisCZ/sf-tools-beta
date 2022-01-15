@@ -119,11 +119,34 @@
                 test('nested header', new Expression('map([{ "Name": "name" }], Item Name(this)).0').eval() == 'name');
                 test('nested header auto', new Expression('map([{ "Name": "name" }], Item Name).0').eval() == 'name');
                 test('template string', new Expression('`Hello, {0}!`("world")').eval() == 'Hello, world!');
+                test('each joins', new Expression('each(["hello", "world"], this, "")').eval() == 'helloworld');
+                test('each joins number', new Expression('each(["hello", "world"], this)').eval() == '0helloworld');
+                test('each joins boolean', new Expression('each([true, true, false], this)').eval() == 2);
                 test('player direct', new Expression('player.Book').eval(new ExpressionScope().with({ Book: 1000 })) == 1000);
                 test('table timestamp', new Expression('table_timestamp').eval(new ExpressionScope({ timestamp: 1000 })) == 1000);
                 test('random not equal', new Expression('random() != random()').eval());
                 test('sort numbers', new Expression('sort([0, 4, 7, 2, 5], -this).1').eval() == 2);
                 test('header difference', new Expression('difference(Level)').eval(new ExpressionScope().with({ Level: 200 }, { Level: 100 })) == 100);
+                test('array is empty', new Expression('[]').eval().join() == '');
+                test('array is not empty', new Expression('[0,1]').eval().join() == '0,1');
+                test('incomplete array is 0, 1, ', new Expression('[0, 1, ]').eval().join() == '0,1,');
+                test('incomplete array is , 0, 1', new Expression('[, 0, 1]').eval().join() == ',0,1');
+                test('object is empty', JSON.stringify(new Expression('{}').eval()) == '{}');
+                test('object is not empty', JSON.stringify(new Expression('{"key": "val"}').eval()) == '{"key":"val"}');
+                test('incomplete object is valid', JSON.stringify(new Expression('{"key": "val", }').eval()) == '{"key":"val"}');
+                test('incomplete object is valid', JSON.stringify(new Expression('{, "key": "val"}').eval()) == '{"key":"val"}');
+                test('incomplete object is valid', JSON.stringify(new Expression('{, "key": "val", }').eval()) == '{"key":"val"}');
+                test('object key is calculated', JSON.stringify(new Expression('{55 + 5: "val"}').eval()) == '{"60":"val"}');
+                test('object key is calculated with brackets', JSON.stringify(new Expression('{(55 + 5): "val"}').eval()) == '{"60":"val"}');
+                test('object value is calculated', JSON.stringify(new Expression('{"key": 55 + 5}').eval()) == '{"key":60}');
+                test('power 2', new Expression('2 ^ 3').eval() == 8);
+                test('power 3', new Expression('2 ^ 2 ^ 2').eval() == 16);
+                test('operator precedence', new Expression('4 * 3 ^ 2').eval() == 36);
+                test('operator precedence 2', new Expression('0 ^ (5 - 5) + 4 * 3 ^ 2').eval() == 37);
+                test('can invoke properties', new Expression('"Hello".length').eval() == 5);
+                test('can invoke methods', new Expression('"  Hello  ".trim()').eval() == 'Hello');
+                test('cannot invoke properties', new Expression('"Hello".length()').eval() == undefined);
+                test('can traverse self', new Expression('this + .this + ..this').eval(new ExpressionScope().addSelf(1).addSelf(2).addSelf(3)) == 6);
             });
         </script>
     </body>

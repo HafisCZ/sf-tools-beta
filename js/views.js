@@ -349,6 +349,104 @@ const FileEditPopup = new (class extends FloatingPopup {
     }
 })();
 
+const SaveOnlineTemplatePopup = new (class extends FloatingPopup {
+    _createModal () {
+        return `
+            <div class="ui basic mini modal" style="background-color: #ffffff; padding: 1em; margin: -2em; border-radius: 0.5em; border: 1px solid #0b0c0c;">
+                <h2 class="ui header" style="color: black; padding-bottom: 0.5em; padding-top: 0; padding-left: 0;">Import template</h2>
+                <div class="ui form" style="margin-top: 1em; line-height: 1.3em; margin-bottom: 2em;">
+                    <div class="ui inverted active dimmer">
+                      <div class="ui indeterminate text loader">Preparing Files</div>
+                    </div>
+                    <div class="two fields">
+                        <div class="field">
+                            <label>Author:</label>
+                            <input data-op="author" type="text" disabled>
+                        </div>
+                        <div class="field">
+                            <label>Created/Updated:</label>
+                            <input data-op="date" type="text" disabled>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label>Name:</label>
+                        <input data-op="name" type="text" placeholder="Template name">
+                    </div>
+                </div>
+                <div data-op="error" style="display: none;">
+                    <h3 class="ui header text-center" style="color: orange; margin-top: 4.25em; margin-bottom: 4.275em;">The requested template is not available!</h3>
+                </div>
+                <div class="ui three fluid buttons">
+                    <button class="ui black fluid button disabled" data-op="cancel">Cancel</button>
+                    <button class="ui fluid button disabled" style="background-color: orange; color: black;" data-op="save">Save</button>
+                </div>
+            </div>
+        `;
+    }
+
+    _createBindings () {
+        this.$name = this.$parent.find('[data-op="name"]');
+        this.$date = this.$parent.find('[data-op="date"]');
+        this.$author = this.$parent.find('[data-op="author"]');
+        this.$form = this.$parent.find('.ui.form');
+        this.$error = this.$parent.find('[data-op="error"]');
+
+        this.$loader = this.$parent.find('.ui.dimmer');
+        this.$cancel = this.$parent.find('[data-op="cancel"]').click(() => {
+            this.close();
+        });
+
+        this.$save = this.$parent.find('[data-op="save"]').click(() => {
+            let name = this.$name.val().trim();
+            if (name.length) {
+                Templates.save(name, this.data.content);
+
+                if (UI.current.refreshTemplateDropdown) {
+                    UI.current.refreshTemplateDropdown();
+                }
+
+                this.close();
+            } else {
+                this.$name.parent('.field').addClass('error').transition('shake');
+            }
+        });
+    }
+
+    setReady () {
+        this.$loader.removeClass('active');
+        this.$cancel.removeClass('disabled');
+        this.$save.removeClass('disabled');
+    }
+
+    setUnavailable () {
+        this.$form.hide();
+        this.$error.show();
+        this.$cancel.removeClass('disabled');
+    }
+
+    _applyArguments (code) {
+        $.ajax({
+            url: `https://sftools-api.herokuapp.com/scripts?key=${code.trim()}`,
+            type: 'GET'
+        }).done((message) => {
+            if (message.success) {
+                let { description, author, date } = message;
+
+                this.data = message;
+                this.$date.val(formatDate(new Date(date)));
+                this.$name.val(description);
+                this.$author.val(author);
+
+                this.setReady();
+            } else {
+                this.setUnavailable();
+            }
+        }).fail(() => {
+            this.setUnavailable();
+        });
+    }
+})();
+
 const FileTagPopup = new (class extends FloatingPopup {
     constructor () {
         super(0);
@@ -476,6 +574,49 @@ const ProfileCreatePopup = new (class extends FloatingPopup {
                             <div data-op="secondary-content" class="ta-content" style="width: 100%; margin-top: -2em; margin-left: 1em;"></div>
                         </div>
                     </div>
+                    <h3 class="ui header" style="margin-bottom: 0.5em; margin-top: 0;">Primary group filter configuration</h3>
+                    <div class="two fields">
+                        <div class="field">
+                            <label>Index:</label>
+                            <div class="ui fluid search selection dropdown" data-op="primary-index-g">
+                                <div class="text"></div>
+                                <i class="dropdown icon"></i>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label>Operation:</label>
+                            <select class="ui fluid search selection dropdown" data-op="primary-operator-g">
+                                <option value="equals">Equals</option>
+                                <option value="above">Above</option>
+                                <option value="below">Below</option>
+                                <option value="between">Between</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="two fields">
+                        <div class="field">
+                            <label>Value 1:</label>
+                            <div class="ta-wrapper" style="height: initial;">
+                                <input class="ta-area" data-op="primary-g" type="text" placeholder="Primary AST expression">
+                                <div data-op="primary-content-g" class="ta-content" style="width: 100%; margin-top: -2em; margin-left: 1em;"></div>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label>Value 2:</label>
+                            <div class="ta-wrapper" style="height: initial;">
+                                <input class="ta-area" data-op="primary-2-g" type="text" placeholder="Primary AST expression (optional)">
+                                <div data-op="primary-content-2-g" class="ta-content" style="width: 100%; margin-top: -2em; margin-left: 1em;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <h3 class="ui header" style="margin-bottom: 0.5em; margin-top: 0;">Secondary group filter configuration</h3>
+                    <div class="field">
+                        <label>Secondary filter:</label>
+                        <div class="ta-wrapper">
+                            <input class="ta-area" data-op="secondary-g" type="text" placeholder="Secondary AST expression">
+                            <div data-op="secondary-content-g" class="ta-content" style="width: 100%; margin-top: -2em; margin-left: 1em;"></div>
+                        </div>
+                    </div>
                 </div>
                 <div class="ui three fluid buttons">
                     <button class="ui black fluid button" data-op="cancel">Cancel</button>
@@ -495,6 +636,13 @@ const ProfileCreatePopup = new (class extends FloatingPopup {
 
         this.$secondary.on('change input', (e) => {
             this.$secondaryContent.html(Expression.format($(e.currentTarget).val() || '', undefined, PROFILES_PROPS));
+        });
+
+        this.$secondaryG = this.$parent.find('[data-op="secondary-g"]');
+        this.$secondaryContentG = this.$parent.find('[data-op="secondary-content-g"]');
+
+        this.$secondaryG.on('change input', (e) => {
+            this.$secondaryContentG.html(Expression.format($(e.currentTarget).val() || '', undefined, PROFILES_GROUP_PROPS));
         });
 
         // Primary filter
@@ -543,24 +691,79 @@ const ProfileCreatePopup = new (class extends FloatingPopup {
             }
         }).dropdown('set selected', 'equals');
 
+        this.$primaryIndexG = this.$parent.find('[data-op="primary-index-g"]');
+        this.$primaryOperatorG = this.$parent.find('[data-op="primary-operator-g"]');
+        this.$primaryG = this.$parent.find('[data-op="primary-g"]');
+        this.$primaryContentG = this.$parent.find('[data-op="primary-content-g"]');
+        this.$primary2G = this.$parent.find('[data-op="primary-2-g"]');
+        this.$primaryContent2G = this.$parent.find('[data-op="primary-content-2-g"]');
+
+        this.$primaryG.on('change input', (e) => {
+            this.$primaryContentG.html(Expression.format($(e.currentTarget).val() || ''));
+        });
+
+        this.$primary2G.on('change input', (e) => {
+            this.$primaryContent2G.html(Expression.format($(e.currentTarget).val() || ''));
+        });
+
+        this.$primaryIndexG.dropdown({
+            values: ['none', ...PROFILES_GROUP_INDEXES].map(v => {
+                return {
+                    name: v.charAt(0).toUpperCase() + v.slice(1),
+                    value: v,
+                    selected: v === 'none'
+                };
+            })
+        }).dropdown('setting', 'onChange', (value, text) => {
+            if (value === 'none') {
+                this.$primaryOperatorG.closest('.field').addClass('disabled');
+                this.$primaryG.val('').trigger('change').closest('.field').addClass('disabled');
+                this.$primary2G.val('').trigger('change').closest('.field').addClass('disabled');
+            } else {
+                this.$primaryOperatorG.closest('.field').removeClass('disabled');
+                this.$primaryG.closest('.field').removeClass('disabled');
+                if (this.$primaryOperatorG.dropdown('get value') === 'between') {
+                    this.$primary2G.closest('.field').removeClass('disabled');
+                }
+            }
+        }).dropdown('set selected', 'none');
+
+        this.$primaryOperatorG.dropdown('setting', 'onChange', (value, text) => {
+            if (value === 'between') {
+                this.$primary2G.closest('.field').removeClass('disabled');
+            } else {
+                this.$primary2G.closest('.field').addClass('disabled');
+            }
+        }).dropdown('set selected', 'equals');
+
         this.$parent.find('[data-op="cancel"]').click(() => {
             this.close();
         });
 
         this.$parent.find('[data-op="save"]').click(() => {
             const primaryName = this.$primaryIndex.dropdown('get value');
+            const primaryNameG = this.$primaryIndexG.dropdown('get value');
             const primaryMode = this.$primaryOperator.dropdown('get value');
+            const primaryModeG = this.$primaryOperatorG.dropdown('get value');
             const primaryValue = this.$primary.val();
+            const primaryValueG = this.$primaryG.val();
             const primaryValue2 = this.$primary2.val();
+            const primaryValue2G = this.$primary2G.val();
 
             ProfileManager.setProfile(this.id, Object.assign(this.profile || {}, {
-                name: this.$name.val(),
+                name: this.$name.val() || `Profile ${this.id}`,
                 primary: primaryName === 'none' ? null : {
                     name: primaryName,
                     mode: primaryMode,
                     value: primaryMode === 'between' ? [ primaryValue, primaryValue2 ] : [ primaryValue ]
                 },
-                secondary: this.$secondary.val()
+                secondary: this.$secondary.val(),
+                primary_g: primaryNameG === 'none' ? null : {
+                    name: primaryNameG,
+                    mode: primaryModeG,
+                    value: primaryModeG === 'between' ? [ primaryValueG, primaryValue2G ] : [ primaryValueG ]
+                },
+                secondary_g: this.$secondaryG.val()
             }));
             this.close();
             this.callback();
@@ -575,7 +778,7 @@ const ProfileCreatePopup = new (class extends FloatingPopup {
         if (id) {
             this.profile = ProfileManager.getProfile(id);
 
-            const { name, primary, secondary } = this.profile;
+            const { name, primary, secondary, primary_g, secondary_g } = this.profile;
             this.$id.val(id);
 
             if (primary) {
@@ -592,17 +795,188 @@ const ProfileCreatePopup = new (class extends FloatingPopup {
                 this.$primary2.val('').trigger('change');
             }
 
+            if (primary_g) {
+                const { mode, name, value } = primary_g;
+
+                this.$primaryIndexG.dropdown('set selected', name);
+                this.$primaryOperatorG.dropdown('set selected', mode);
+                this.$primaryG.val(value[0] || '').trigger('change');
+                this.$primary2G.val(value[1] || '').trigger('change');
+            } else {
+                this.$primaryIndexG.dropdown('set selected', 'none');
+                this.$primaryOperatorG.dropdown('set selected', 'equals');
+                this.$primaryG.val('').trigger('change');
+                this.$primary2G.val('').trigger('change');
+            }
+
             this.$secondary.val(secondary).trigger('change');
-            this.$name.val(name);
+            this.$secondaryG.val(secondary_g).trigger('change');
+            this.$name.val(name || `Profile ${id}`);
         } else {
             this.$id.val(this.id);
             this.$primaryIndex.dropdown('set selected', 'none');
+            this.$primaryIndexG.dropdown('set selected', 'none');
             this.$primaryOperator.dropdown('set selected', 'equals');
+            this.$primaryOperatorG.dropdown('set selected', 'equals');
             this.$primary.val('').trigger('change');
+            this.$primaryG.val('').trigger('change');
             this.$primary2.val('').trigger('change');
+            this.$primary2G.val('').trigger('change');
             this.$secondary.val('').trigger('change');
+            this.$secondaryG.val('').trigger('change');
             this.$name.val('');
         }
+    }
+})();
+
+const ActionCreatePopup = new (class extends FloatingPopup {
+    constructor () {
+        super(0);
+    }
+
+    _createModal () {
+        return `
+            <div class="ui small modal" style="background-color: #ffffff; padding: 1em; margin: -2em; border-radius: 0.5em; border: 1px solid #0b0c0c;">
+                <h2 class="ui header" style="color: black; padding-bottom: 0.5em; padding-top: 0; padding-left: 0;">Create/Edit action</h2>
+                <div class="ui form" style="margin-top: 1em; line-height: 1.3em; margin-bottom: 2em;">
+                    <div class="two fields">
+                        <div class="four wide field">
+                            <label>ID:</label>
+                            <input class="text-center" data-op="id" type="text" disabled>
+                        </div>
+                        <div class="twelve wide field">
+                            <label>Name:</label>
+                            <input data-op="name" type="text">
+                        </div>
+                    </div>
+                    <h3 class="ui header" style="margin-bottom: 0.5em; margin-top: 0;">Configuration</h3>
+                    <div class="two fields">
+                        <div class="field">
+                            <label>Action:</label>
+                            <select class="ui fluid search selection dropdown" data-op="action">
+                                <option value="tag">Tag</option>
+                                <option value="rebase" disabled>Update timestamp</option>
+                                <option value="remove" disabled>Remove</option>
+                                <option value="merge" disabled>Merge</option>
+                                <option value="duplicate" disabled>Duplicate</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Trigger on:</label>
+                            <select class="ui fluid search selection dropdown" data-op="trigger">
+                                <option value="import">Import</option>
+                                <option value="load" disabled>Load</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="two fields">
+                        <div class="field"></div>
+                        <div class="grouped fields" style="padding-left: 1.5em;">
+                            <div class="field">
+                                <div class="ui checkbox">
+                                    <input type="checkbox" name="import-har">
+                                    <label>HAR</label>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <div class="ui checkbox">
+                                    <input type="checkbox" name="import-endpoint">
+                                    <label>Endpoint</label>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <div class="ui checkbox">
+                                    <input type="checkbox" name="import-merge">
+                                    <label>Merge</label>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <div class="ui checkbox">
+                                    <input type="checkbox" name="import-shared">
+                                    <label>Shared</label>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <div class="ui checkbox">
+                                    <input type="checkbox" name="import-dungeons-har">
+                                    <label>Dungeons - HAR</label>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <div class="ui checkbox">
+                                    <input type="checkbox" name="import-dungeons-endpoint">
+                                    <label>Dungeons - Endpoint</label>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <div class="ui checkbox">
+                                    <input type="checkbox" name="import-pets-har">
+                                    <label>Pets - HAR</label>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <div class="ui checkbox">
+                                    <input type="checkbox" name="import-pets-endpoint">
+                                    <label>Pets - Endpoint</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="two fields">
+                        <div class="field">
+                            <label>Apply to:</label>
+                            <select class="ui fluid search selection dropdown" data-op="target">
+                                <option value="file">File</option>
+                                <option value="player">Player</option>
+                                <option value="group">Group</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Allow in temporary mode:</label>
+                            <select class="ui fluid search selection dropdown" data-op="temporary">
+                                <option value="0">No</option>
+                                <option value="1">Yes</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label>If:</label>
+                        <div class="ta-wrapper" style="height: initial;">
+                            <input class="ta-area" data-op="condition" type="text" placeholder="AST expression">
+                            <div data-op="condition-content" class="ta-content" style="width: 100%; margin-top: -2em; margin-left: 1em;"></div>
+                        </div>
+                    </div>
+                    <h3 class="ui header" style="margin-bottom: 0.5em; margin-top: 0;">Arguments</h3>
+                    <div class="field">
+                        <div class="ta-wrapper" style="height: initial;">
+                            <input class="ta-area" data-op="arguments" type="text" placeholder="AST expression (array)">
+                            <div data-op="arguments-content" class="ta-content" style="width: 100%; margin-top: -2em; margin-left: 1em;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui three fluid buttons">
+                    <button class="ui black fluid button" data-op="cancel">Cancel</button>
+                    <button class="ui fluid button" style="background-color: orange; color: black;" data-op="save">Save</button>
+                </div>
+            </div>
+        `;
+    }
+
+    _createBindings () {
+        this.$parent.find('.dropdown').dropdown();
+
+        this.$parent.find('[data-op="cancel"]').click(() => {
+            this.close();
+        });
+
+        this.$parent.find('[data-op="save"]').click(() => {
+            this.close();
+            this.callback();
+        });
+    }
+
+    _applyArguments (callback, id) {
+
     }
 })();
 

@@ -29,16 +29,19 @@ function _any_true (arr, m) {
     return false;
 }
 
+function _all_true (arr, m) {
+    for (const a of arr) {
+        if (!m(a)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 function _push_unless_includes(arr, obj) {
     if (!_has(arr, obj)) {
         arr.push(obj);
-    }
-}
-
-function _remove_unless_includes(arr, obj) {
-    const index = arr.indexOf(obj);
-    if (index > -1) {
-        arr.splice(index, 1);
     }
 }
 
@@ -51,9 +54,11 @@ function _nil (obj) {
 }
 
 function _remove (arr, obj) {
-    const index = arr.indexOf(obj);
-    if (index > -1) {
-        arr.splice(index, 1);
+    if (arr) {
+        const index = arr.indexOf(obj);
+        if (index > -1) {
+            arr.splice(index, 1);
+        }
     }
 }
 
@@ -140,6 +145,10 @@ function _jsonify (text) {
 }
 
 function _pretty_prefix (prefix) {
+    if (_empty(prefix)) {
+        return '';
+    }
+
     const splitPrefix = prefix.split('_');
     const properName = splitPrefix[0].charAt(0).toUpperCase() + splitPrefix[0].slice(1);
     const properDomain = splitPrefix[1].toUpperCase();

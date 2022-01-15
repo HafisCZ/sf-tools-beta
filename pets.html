@@ -153,6 +153,7 @@
                 left: 2em;
                 top: 5em;
                 width: 15em;
+                z-index: 99;
             }
         </style>
     </head>
@@ -940,6 +941,7 @@
             });
 
             $('#load-stats').click(() => {
+                toggleAll(true);
                 DatabaseManager.load(SELF_PROFILE).then(function () {
                     $('#stats-list').empty();
 
@@ -1036,6 +1038,8 @@
                                 </label>
                                 <input type="file" multiple data-op="upload" accept=".har,.json" class="css-hidden" id="button-upload">
                             `).change((fileEvent) => {
+                                toggleAll(true);
+
                                 let pendingPromises = [];
                                 Array.from(fileEvent.target.files).forEach(file => pendingPromises.push(file.text().then(fileContent => DatabaseManager.import(fileContent, file.lastModified, undefined, 'har/pets'))));
                                 Promise.all(pendingPromises).then(() => {
@@ -1045,9 +1049,9 @@
                         )
                     );
 
-                    PopupController.close(LoaderPopup);
+                    toggleAll();
                 }).catch(function () {
-                    PopupController.close(LoaderPopup);
+                    toggleAll();
                     Logger.log('WARNING', 'Database could not be opened!');
                     $('#stats-list').empty();
                 });

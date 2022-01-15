@@ -428,6 +428,14 @@ input:disabled {
     border-right: 1px solid black !important;
 }
 
+.border-top-thin {
+    border-top: 1px solid black !important;
+}
+
+.border-bottom-thin {
+    border-bottom: 1px solid black !important;
+}
+
 .border-right-false {
     border-right: 1px solid transparent !important;
 }
@@ -660,6 +668,10 @@ h3.file-selected {
 
 .ta-constant {
     color: #175e5a;
+}
+
+.ta-global {
+    color: #1f58cc;
 }
 
 .ta-function {

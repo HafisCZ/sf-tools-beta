@@ -14,11 +14,7 @@ class HeaderGroup {
 
     add (settings, cellGenerator, statisticsGenerator, sort, border, span = 1) {
         let { expa_eval, alias, name } = settings;
-        let header = {
-            // Header
-            ... settings,
-
-            // Own properties
+        let header = Object.assign(settings || {}, {
             name: expa_eval != undefined ? expa_eval : (alias != undefined ? alias : name),
             generators: {
                 cell: cellGenerator,
@@ -28,7 +24,7 @@ class HeaderGroup {
             sortkey: SHA1(`${ this.sortkey }.${ name }.${ this.headers.length }`),
             span: span,
             bordered: border
-        };
+        });
 
         // Set approximate sizes
         if (typeof header.width == 'undefined') {
@@ -171,7 +167,82 @@ class TableInstance {
                     }
                 }
 
-                if (header.grouped) {
+                if (header.embedded) {
+                    if (header.columns && !header.width) {
+                        header.width = _sum(header.columns);
+                    }
+
+                    group.add(header, (player, compare) => {
+                        let values = [null];
+                        if (header.expr) {
+                            let value = new ExpressionScope(this.settings).with(player, compare).via(header).eval(header.expr);
+                            values = Array.isArray(value) ? value : [value];
+                        }
+
+                        let allBlank = _all_true(header.headers, h => !(h.expa || h.alias || h.name));
+                        let generators = header.headers.map((embedHeader) => {
+                            return {
+                                name: () => {
+                                    let expa_eval = undefined;
+                                    if (embedHeader.expa) {
+                                        expa_eval = embedHeader.expa(this.settings, category);
+                                        if (expa_eval != undefined) {
+                                            expa_eval = String(expa_eval);
+                                        }
+                                    }
+
+                                    let name = expa_eval || embedHeader.alias || embedHeader.name || '';
+
+                                    return this.getCell(
+                                        embedHeader,
+                                        name,
+                                        '',
+                                        embedHeader.border,
+                                         _dig(header, 'columns', 0) || Math.max(100, name.length * 12)
+                                    );
+                                },
+                                get: (value, i) => {
+                                    let val = getSafeExpr(
+                                        embedHeader.expr,
+                                        player,
+                                        compare,
+                                        this.settings,
+                                        new ExpressionScope(this.settings).with(player, compare).addSelf(value).via(embedHeader),
+                                        embedHeader
+                                    );
+
+                                    if (val == undefined) {
+                                        return this.getEmptyCell(embedHeader, false, undefined, _dig(header, 'columns', i + 1));
+                                    } else {
+                                        let cmp = embedHeader.difference ? getSafeExpr(
+                                            embedHeader.expr,
+                                            compare,
+                                            compare,
+                                            this.settings.getCompareEnvironment(),
+                                            new ExpressionScope(this.settings.getCompareEnvironment()).with(compare, compare).addSelf(value).via(embedHeader),
+                                            embedHeader
+                                        ) : undefined;
+
+                                        return this.getCell(
+                                            embedHeader,
+                                            this.getCellDisplayValue(embedHeader, val, cmp, player, compare, undefined, value),
+                                            this.getCellColor(embedHeader, val, player, compare, undefined, false, value),
+                                            embedHeader.border,
+                                            _dig(header, 'columns', i + 1)
+                                        );
+                                    }
+                                }
+                            };
+                        });
+
+                        let rowHeight = header.row_height ? ` style="height: ${header.row_height}px;"` : '';
+                        let entries = generators.map(({ name, get }) => {
+                            return `<tr${rowHeight}>${ allBlank ? '' : name() }${ values.map((v, i) => get(v, i)).join('') }</tr>`;
+                        }).join('');
+
+                        return CellGenerator.EmbedTable(entries, this.getCellColor(header, values, player, compare), showBorder, header.font);
+                    }, null, (player, compare) => 0 /* TODO: Implement native sorting */, showBorder);
+                } else if (header.grouped) {
                     // Create grouped header
                     let callWidth = header.width || 100;
                     group.add(header, (player, compare) => {
@@ -341,7 +412,7 @@ class TableInstance {
     setEntries (array, skipEvaluation = false, simulatorLimit = 0, manualSort = null) {
         let shouldUpdate = false;
 
-        if (this.type == TableType.History) {
+        if (this.type == ScriptType.History) {
             this.array = array.map(([ timestamp, e ]) => {
                 let obj = DatabaseManager.getPlayer(e.Identifier, timestamp);
                 let disc = this.settings.discardRules.some(rule => new ExpressionScope(this.settings).with(obj, obj).eval(rule));
@@ -349,7 +420,7 @@ class TableInstance {
 
                 return disc ? null : [ timestamp, obj ];
             }).filter(e => e);
-        } else if (this.type == TableType.Players) {
+        } else if (this.type == ScriptType.Players) {
             this.array = array.map(obj => {
                 let { player, compare } = obj;
 
@@ -370,22 +441,22 @@ class TableInstance {
         }
 
         // Evaluate variables
-        if (this.type == TableType.History) {
-            this.settings.evalHistory(this.array.map(p => p[1]));
+        if (this.type == ScriptType.History) {
+            this.settings.evalHistory(this.array.map(p => p[1]), array.map(p => p[1]));
         } else if (!skipEvaluation) {
-            if (this.type == TableType.Players) {
-                this.settings.evalPlayers(array, simulatorLimit, array.perf);
+            if (this.type == ScriptType.Players) {
+                this.settings.evalPlayers(this.array, array, simulatorLimit, this.array.perf);
             } else {
-                this.settings.evalGuilds(array);
+                this.settings.evalGuilds(this.array, array);
             }
         }
 
-        if (!skipEvaluation || this.type == TableType.History) {
+        if (!skipEvaluation || this.type == ScriptType.History) {
             ExpressionCache.reset();
             this.clearCache();
         }
 
-        if (manualSort && this.type != TableType.History) {
+        if (manualSort && this.type != ScriptType.History) {
             this.array.sort((a, b) => manualSort(b.player, b.compare) - manualSort(a.player, a.compare)).forEach((entry, i) => entry.index = i);
         }
 
@@ -403,7 +474,7 @@ class TableInstance {
         let dividerStyle = this.getCellDividerStyle();
         let rowHeight = this.settings.getRowHeight();
 
-        if (this.type == TableType.History) {
+        if (this.type == ScriptType.History) {
             // Loop over all items of the array
             for (let i = 0; i < this.array.length; i++) {
                 // Get variables
@@ -445,7 +516,7 @@ class TableInstance {
                     content: content
                 })
             }
-        } else if (this.type == TableType.Players) {
+        } else if (this.type == ScriptType.Players) {
             // Whether timestamps match
             let noCompare = this.array.reference == this.array.timestamp;
 
@@ -512,7 +583,7 @@ class TableInstance {
                                 difference = (flip ? -1 : 1) * (value - getSafeExpr(expr, compare, compare, this.settings, undefined, header));
                             }
 
-                            obj[sortkey] = getSafeExpr(order, player, compare, this.settings, new ExpressionScope().addSelf(value).add({ difference: difference }));
+                            obj[sortkey] = getSafeExpr(order, player, compare, this.settings, new ExpressionScope(this.settings).with(player, compare).addSelf(value).add({ difference: difference }));
                         } else {
                             // Return native sorting function
                             obj[sortkey] = sort(player, compare);
@@ -532,7 +603,7 @@ class TableInstance {
                     })
                 });
             }
-        } else if (this.type == TableType.Group) {
+        } else if (this.type == ScriptType.Group) {
             // Whether timestamps match
             let noCompare = this.array.reference == this.array.timestamp;
 
@@ -590,7 +661,7 @@ class TableInstance {
                                 difference = (flip ? -1 : 1) * (value - getSafeExpr(expr, compare, compare, this.settings, undefined, header));
                             }
 
-                            obj[sortkey] = getSafeExpr(order, player, compare, this.settings, new ExpressionScope().addSelf(value).add({ difference: difference }));
+                            obj[sortkey] = getSafeExpr(order, player, compare, this.settings, new ExpressionScope(this.settings).with(player, compare).addSelf(value).add({ difference: difference }));
                         } else {
                             // Return native sorting function
                             obj[sortkey] = sort(player, compare);
@@ -712,7 +783,7 @@ class TableInstance {
         );
     }
 
-    getEmptyCell ({ ndef, ndefc, style }, border = undefined, span = 0) {
+    getEmptyCell ({ ndef, ndefc, style }, border = undefined, span = 0, cellWidth = undefined) {
         if (span) {
             return CellGenerator.PlainSpan(
                 span,
@@ -728,7 +799,8 @@ class TableInstance {
                 border,
                 undefined,
                 ndefc,
-                style ? style.cssText : undefined
+                style ? style.cssText : undefined,
+                cellWidth
             );
         }
     }
@@ -756,9 +828,9 @@ class TableInstance {
         }
     }
 
-    getCellDisplayValue (header, val, cmp, player = undefined, compare = undefined, extra = undefined) {
+    getCellDisplayValue (header, val, cmp, player = undefined, compare = undefined, extra = undefined, altSelf = undefined) {
         let { difference, ex_difference, flip, value, brackets } = header;
-        let displayValue = value.get(player, compare, this.settings, val, extra, header);
+        let displayValue = value.get(player, compare, this.settings, val, extra, header, altSelf);
         if (!difference || isNaN(cmp)) {
             return displayValue;
         } else {
@@ -785,8 +857,8 @@ class TableInstance {
         }
     }
 
-    getCellColor (header, val, player = undefined, compare = undefined, extra = undefined, ignoreBase = false) {
-        return header.color.get(player, compare, this.settings, val, extra, ignoreBase, header);
+    getCellColor (header, val, player = undefined, compare = undefined, extra = undefined, ignoreBase = false, altSelf = undefined) {
+        return header.color.get(player, compare, this.settings, val, extra, ignoreBase, header, altSelf);
     }
 
     getDivider (leftSpan, bottomSpacer, topSpacer) {
@@ -1363,7 +1435,7 @@ class TableController {
             ExpressionCache.start();
 
             this.table.setEntries(... this.entries);
-            if (this.type != TableType.History) {
+            if (this.type != ScriptType.History) {
                 this.table.sort();
             }
 
@@ -1371,7 +1443,7 @@ class TableController {
         }
 
         // Reset sorting
-        if (sorting != null && this.type != TableType.History) {
+        if (sorting != null && this.type != ScriptType.History) {
             this.table.sorting = sorting;
             this.table.sort();
         }
@@ -1454,24 +1526,56 @@ class TableController {
     }
 }
 
+function getCSSBorderClass (border) {
+    if (typeof border === 'number') {
+        switch (border) {
+            case 4: return 'border-top-thin';
+            case 5: return 'border-bottom-thin';
+            default: return '';
+        }
+    } else if (border) {
+        return 'border-right-thin';
+    } else {
+        return '';
+    }
+
+    if (typeof bo === 'object') {
+        if (bo.top) {
+            return 'border-top-thin';
+        } else if (bo.bottom) {
+            return 'border-bottom-thin';
+        } else {
+            return '';
+        }
+    } else {
+        return bo ? 'border-right-thin' : '';
+    }
+}
+
 // Cell generators
 const CellGenerator = {
     // Simple cell
     Cell: function (c, b, f, bo, al, pad, style, cellWidth, hasAction) {
         let color = getCSSColorFromBackground(f);
-        return `<td class="${ bo ? 'border-right-thin' : '' } ${ al ? al : '' } ${ hasAction ? 'clickable' : '' }" ${ hasAction ? '{__ACTION__}' : '' } style="${ cellWidth ? `width: ${ cellWidth }px;` : '' } ${ color ? `color:${ color };` : '' }${ b ? `background:${ b };` : '' }${ pad ? `padding-left: ${ pad } !important;` : '' }${ style || '' }">${ hasAction ? '{__ACTION_OP__}' : '' }${ c }</td>`;
+        let border = getCSSBorderClass(bo);
+
+        return `<td class="${ border } ${ al ? al : '' } ${ hasAction ? 'clickable' : '' }" ${ hasAction ? '{__ACTION__}' : '' } style="${ cellWidth ? `width: ${ cellWidth }px;` : '' } ${ color ? `color:${ color };` : '' }${ b ? `background:${ b };` : '' }${ pad ? `padding-left: ${ pad } !important;` : '' }${ style || '' }">${ hasAction ? '{__ACTION_OP__}' : '' }${ c }</td>`;
     },
     // Wide cell
     WideCell: function (c, b, w, al, pad, style) {
         return `<td class="${ al ? al : '' }" colspan="${ w }" style="${ b ? `background:${ b };` : '' }${ pad ? `padding-left: ${ pad } !important;` : '' }${ style || '' }">${ c }</td>`;
     },
     // Plain cell
-    Plain: function (c, bo, al, bg, style) {
-        return `<td class="${ bo ? 'border-right-thin' : '' } ${ al ? al : '' }" style="${ bg ? `background: ${ bg };` : '' }${ style || '' }">${ c }</td>`;
+    Plain: function (c, bo, al, bg, style, cellWidth) {
+        let border = getCSSBorderClass(bo);
+
+        return `<td class="${ border } ${ al ? al : '' }" style="${ cellWidth ? `width: ${ cellWidth }px;` : '' } ${ bg ? `background: ${ bg };` : '' }${ style || '' }">${ c }</td>`;
     },
     // Plain cell
     PlainSpan: function (s, c, bo, al, bg, style) {
-        return `<td class="${ bo ? 'border-right-thin' : '' } ${ al ? al : '' }" colspan="${ s }"  style="${ bg ? `background: ${ bg };` : '' }${ style || '' }">${ c }</td>`;
+        let border = getCSSBorderClass(bo);
+
+        return `<td class="${ border } ${ al ? al : '' }" colspan="${ s }"  style="${ bg ? `background: ${ bg };` : '' }${ style || '' }">${ c }</td>`;
     },
     // Difference
     Difference: function (d, b, c) {
@@ -1484,5 +1588,15 @@ const CellGenerator = {
     // Small text,
     Small: function (c) {
         return `<span>${ c }</span>`;
+    },
+    // Embed table
+    EmbedTable: function (c, b, bo, f) {
+        let bg = b ? `background:${ b };` : '';
+        let fr = f ? `font: ${f};` : '';
+        return `<td style="padding: 0; vertical-align: top; ${ bg }" class="${bo ? 'border-right-thin' : ''}">
+            <table style="width: 100%; border-spacing: 0; border-collapse: collapse; ${ bg } ${fr}">
+                ${c}
+            </table>
+        </td>`
     }
 }

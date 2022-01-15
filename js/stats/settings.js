@@ -1,7 +1,13 @@
-const TableType = {
+const ScriptType = {
     History: 0,
     Players: 1,
-    Group: 2
+    Group: 2,
+    Tracker: 3
+}
+
+const EditorType = {
+    DEFAULT: 0,
+    ACTIONS: 1
 }
 
 const ARG_MAP = {
@@ -18,10 +24,12 @@ const ARG_MAP = {
     'below': 'b',
     'equal': 'e',
     'default': 'd',
+    'none': 0,
     'left': 1,
     'right': 2,
     'both': 3,
-    'none': 0
+    'top': 4,
+    'bottom': 5
 };
 
 const ARG_MAP_SERVER = {
@@ -109,9 +117,9 @@ class RuleEvaluator {
 }
 
 const FilterTypes = {
-    'Guild': TableType.Group,
-    'Player': TableType.History,
-    'Players': TableType.Players
+    'Guild': ScriptType.Group,
+    'Player': ScriptType.History,
+    'Players': ScriptType.Players
 };
 
 class Command {
@@ -123,6 +131,7 @@ class Command {
         this.canParseAlways = false;
         this.canParse = true;
         this.canCopy = false;
+        this.type = 0;
     }
 
     isValid (string) {
@@ -153,6 +162,11 @@ class Command {
 
     copyable () {
         this.canCopy = true;
+        return this;
+    }
+
+    specialType (type) {
+        this.type = type;
         return this;
     }
 }
@@ -196,7 +210,7 @@ const SettingsCommands = [
     new Command(
         /^loop (\w+(?:\s*\,\s*\w+)*) for (.+)$/,
         null,
-        (root, name, array) => SFormat.Macro(SFormat.Keyword('loop ') + SFormat.Constant(name) + SFormat.Keyword(' for ') + Expression.format(array), true)
+        (root, name, array) => SFormat.Macro(SFormat.Keyword('loop ') + SFormat.Constant(name) + SFormat.Keyword(' for ') + Expression.format(array, root), true)
     ).parseNever(),
     /*
         End loop or condition
@@ -231,6 +245,27 @@ const SettingsCommands = [
             }
         },
         (root, name, expression) => SFormat.Macro('mset') + SFormat.Keyword(' ') + SFormat.Constant(name) + SFormat.Keyword(' as ') + Expression.format(expression, root),
+    ).parseAlways(),
+    /*
+        Constant
+    */
+    new Command(
+        /^const (\w+) (.+)$/,
+        (root, name, value) => root.addConstant(name, value),
+        (root, name, value) => SFormat.Keyword('const ') + SFormat.Constant(name) + ' ' + SFormat.Normal(value),
+    ).parseAlways(),
+    /*
+        Constant Expression
+    */
+    new Command(
+        /^constexpr (\w+) (.+)$/,
+        (root, name, expression) => {
+            let ast = new Expression(expression);
+            if (ast.isValid()) {
+                root.addConstant(name, new ExpressionScope(root).eval(ast));
+            }
+        },
+        (root, name, expression) => SFormat.Keyword('constexpr ') + SFormat.Constant(name) + ' ' + Expression.format(expression, root),
     ).parseAlways(),
     /*
         Server column
@@ -310,6 +345,34 @@ const SettingsCommands = [
             } else {
                 return prefix + SFormat.Normal(value);
             }
+        }
+    ).copyable(),
+    /*
+        Embed width configuration
+    */
+    new Command(
+        /^columns (@?\w+[\w ]*(?:,\s*@?\w+[\w ]*)*)$/,
+        (root, parts) => {
+            let values = parts.split(',').map(p => root.constants.get(p.trim())).map(v => isNaN(v) ? 0 : parseInt(v));
+            if (values.length > 0) {
+                root.addLocal('columns', values);
+            }
+        },
+        (root, parts) => {
+            let prefix = SFormat.Keyword('columns ');
+            let content = [];
+            for (let part of parts.split(',')) {
+                const value = root.constants.get(part.trim());
+                if (isNaN(value)) {
+                    content.push(SFormat.Error(part));
+                } else if (part.trim()[0] == '@') {
+                    content.push(SFormat.Constant(part));
+                } else {
+                    content.push(SFormat.Normal(part));
+                }
+            }
+
+            return prefix + content.join(',');
         }
     ).copyable(),
     /*
@@ -685,10 +748,29 @@ const SettingsCommands = [
     */
     new Command(
         /^var (\w+) (.+)$/,
-        (root, name, value) => {
-            root.addHeaderVariable(name, value);
-        },
+        (root, name, value) => root.addHeaderVariable(name, value),
         (root, name, value) => SFormat.Keyword('var ') + SFormat.Constant(name) + ' ' + SFormat.Normal(value)
+    ).copyable(),
+    /*
+        Embedded table end
+    */
+    new Command(
+        /^embed end$/,
+        (root) => root.pushEmbed(),
+        (root) => SFormat.Keyword('embed end')
+    ).copyable(),
+    /*
+        Embedded table
+    */
+    new Command(
+        /^((?:\w+)(?:\,\w+)*:|)embed(?: (.+))?$/,
+        (root, extensions, name) => {
+            root.embedBlock(name || '');
+            if (extensions) {
+                root.addExtension(... extensions.slice(0, -1).split(','));
+            }
+        },
+        (root, extensions, name) => (extensions ? SFormat.Constant(extensions) : '') + SFormat.Keyword('embed') + (name ? (' ' + SFormat.Normal(name)) : '')
     ).copyable(),
     /*
         Layout
@@ -709,7 +791,20 @@ const SettingsCommands = [
                 root.addVariable(name, ast, true);
             }
         },
-        (root, name, expression) => SFormat.Keyword('set ') + SFormat.Constant(name) + SFormat.Keyword(' with all as ') + Expression.format(expression, root),
+        (root, name, expression) => SFormat.Keyword('set ') + SFormat.Global(name) + SFormat.Keyword(' with all as ') + Expression.format(expression, root),
+    ).parseAlways(),
+    /*
+        New syntax for table variable
+    */
+    new Command(
+        /^set \$(\w+[\w ]*) as (.+)$/,
+        (root, name, expression) => {
+            let ast = new Expression(expression, root);
+            if (ast.isValid()) {
+                root.addVariable(name, ast, true);
+            }
+        },
+        (root, name, expression) => SFormat.Keyword('set ') + SFormat.Global(`$${name}`) + SFormat.Keyword(' as ') + Expression.format(expression, root)
     ).parseAlways(),
     /*
         Function
@@ -781,7 +876,7 @@ const SettingsCommands = [
         /^row height (\d+)$/,
         (root, value) => {
             if (value > 0) {
-                root.addGlobal('row_height', Number(value));
+                root.addGlobalEmbedable('row_height', Number(value));
             }
         },
         (root, value) => SFormat.Keyword('row height ') + (value > 0 ? SFormat.Normal(value) : SFormat.Error(value))
@@ -794,7 +889,7 @@ const SettingsCommands = [
         (root, font) => {
             let value = getCSSFont(font);
             if (value) {
-                root.addGlobal('font', value);
+                root.addGlobalEmbedable('font', value);
             }
         },
         (root, font) => SFormat.Keyword('font ') + (getCSSFont(font) ? SFormat.Normal(font) : SFormat.Error(font))
@@ -913,14 +1008,6 @@ const SettingsCommands = [
         (root, value) => SFormat.Keyword('extra ') + SFormat.Normal(value)
     ).copyable(),
     /*
-        Constant
-    */
-    new Command(
-        /^const (\w+) (.+)$/,
-        (root, name, value) => root.addConstant(name, value),
-        (root, name, value) => SFormat.Keyword('const ') + SFormat.Constant(name) + ' ' + SFormat.Normal(value),
-    ).parseAlways(),
-    /*
         Cell style
     */
     new Command(
@@ -948,7 +1035,7 @@ const SettingsCommands = [
         Cell border
     */
     new Command(
-        /^border (none|left|right|both)$/,
+        /^border (none|left|right|both|top|bottom)$/,
         (root, value) => root.addShared('border', ARG_MAP[value]),
         (root, value) => SFormat.Keyword('border ') + SFormat.Constant(value)
     ).copyable(),
@@ -1093,6 +1180,20 @@ const SettingsCommands = [
         (root) => SFormat.Keyword('push')
     ).parseAlways(),
     /*
+        Tag action
+    */
+    new Command(
+        /^tag (player|file) as (.+) if (.+)$/,
+        (root, type, tag, expr) => {
+            let ast1 = new Expression(tag);
+            let ast2 = new Expression(expr);
+            if (ast1.isValid() && ast2.isValid()) {
+                root.addActionEntry('tag', type, ast1, ast2);
+            }
+        },
+        (root, type, tag, expr) => SFormat.Keyword('tag ') + SFormat.Constant(type) + SFormat.Keyword(' as ') + Expression.format(tag, undefined, ACTION_PROPS) + SFormat.Keyword(' if ') + Expression.format(expr, undefined, ACTION_PROPS)
+    ).specialType(EditorType.ACTIONS),
+    /*
         Tracker
     */
     new Command(
@@ -1126,10 +1227,12 @@ SettingsCommands.MACRO_LOOP = SettingsCommands[4];
 SettingsCommands.MACRO_END = SettingsCommands[5];
 SettingsCommands.MACRO_FUNCTION = SettingsCommands[6];
 SettingsCommands.MACRO_VARIABLE = SettingsCommands[7];
+SettingsCommands.MACRO_CONST = SettingsCommands[8];
+SettingsCommands.MACRO_CONSTEXPR = SettingsCommands[9];
 
 class Settings {
     // Contructor
-    constructor (string, type) {
+    constructor (string, type, scriptType = 0) {
         this.code = string;
         this.type = type;
         this.env_id = RandomSHA();
@@ -1158,6 +1261,7 @@ class Settings {
 
         // Other things
         this.customDefinitions = {};
+        this.actions = [];
 
         // Settings
         this.globals = {};
@@ -1176,16 +1280,18 @@ class Settings {
         this.header = null;
         this.definition = null;
         this.row = null;
+        this.embed = null;
 
         // Parse settings
         for (let line of Settings.handleMacros(string, type)) {
             let command = SettingsCommands.find(command => command.isValid(line));
-            if (command && command.canParse) {
+            if (command && command.canParse && command.type == scriptType) {
                 command.parse(this, line);
             }
         }
 
-        // Push last category
+        // Push last embed && category
+        this.pushEmbed();
         this.pushCategory();
     }
 
@@ -1338,7 +1444,7 @@ class Settings {
 
                         output.push(loopLine);
 
-                        if (/^(?:\w+(?:\,\w+)*:|)(?:header|show|category)(?: .+)?$/.test(loopLine)) {
+                        if (/^(?:\w+(?:\,\w+)*:|)(?:header|embed|show|category)(?: .+)?$/.test(loopLine)) {
                             output.push(... varArray);
                         }
                     }
@@ -1386,6 +1492,16 @@ class Settings {
                             tableVariable: false
                         };
                     }
+                } else if (SettingsCommands.MACRO_CONST.isValid(line)) {
+                    let [name, value] = SettingsCommands.MACRO_CONST.parseAsMacro(line);
+                    settings.constants.addConstant(name, value);
+                } else if (SettingsCommands.MACRO_CONSTEXPR.isValid(line)) {
+                    let [name, expression] = SettingsCommands.MACRO_CONSTEXPR.parseAsMacro(line);
+
+                    let ast = new Expression(expression);
+                    if (ast.isValid()) {
+                        settings.constants.addConstant(name, new ExpressionScope(settings).eval(ast));
+                    }
                 }
             }
         }
@@ -1403,9 +1519,9 @@ class Settings {
 
         // Special constants for macros
         let constants = new Constants();
-        constants.addConstant('guild', TableType.Group);
-        constants.addConstant('player', TableType.History);
-        constants.addConstant('players', TableType.Players);
+        constants.addConstant('guild', ScriptType.Group);
+        constants.addConstant('player', ScriptType.History);
+        constants.addConstant('players', ScriptType.Players);
 
         // Generate initial settings
         let settings = Settings.handleMacroVariables(lines, constants);
@@ -1475,6 +1591,14 @@ class Settings {
             out: out,
             hash: ast.rstr + (out ? out.rstr : '0000000000000000')
         };
+    }
+
+    addActionEntry (action, type, ...args) {
+        this.actions.push({
+            action,
+            type,
+            args
+        });
     }
 
     // Merge mapping to object
@@ -1574,7 +1698,7 @@ class Settings {
 
         // Push header
         obj = this.header;
-        if (obj && this.category) {
+        if (obj && (this.embed || this.category)) {
             let name = obj.name;
 
             // Get mapping if exists
@@ -1607,7 +1731,10 @@ class Settings {
             // Push header if possible
             if (obj.expr) {
                 if (!obj.clean) {
-                    this.merge(obj, this.sharedCategory);
+                    if (this.category) {
+                        this.merge(obj, this.sharedCategory);
+                    }
+
                     this.merge(obj, this.shared);
                 } else {
                     this.merge(obj, {
@@ -1621,7 +1748,7 @@ class Settings {
                 }
 
                 // Push
-                this.category.headers.push(obj);
+                (this.embed || this.category).headers.push(obj);
             }
 
             this.header = null;
@@ -1647,9 +1774,9 @@ class Settings {
         return {
             expr: undefined,
             rules: new RuleEvaluator(),
-            get: function (player, compare, settings, value, extra = undefined, ignoreBase = false, header = undefined) {
+            get: function (player, compare, settings, value, extra = undefined, ignoreBase = false, header = undefined, alternateSelf = undefined) {
                 // Get color from expression
-                let expressionColor = this.expr ? new ExpressionScope(settings).with(player, compare).addSelf(value).add(extra).via(header).eval(this.expr) : undefined;
+                let expressionColor = this.expr ? new ExpressionScope(settings).with(player, compare).addSelf(alternateSelf).addSelf(value).add(extra).via(header).eval(this.expr) : undefined;
 
                 // Get color from color block
                 let blockColor = this.rules.get(value, ignoreBase || (typeof expressionColor !== 'undefined'));
@@ -1669,14 +1796,14 @@ class Settings {
             formatDifference: undefined,
             formatStatistics: undefined,
             rules: new RuleEvaluator(),
-            get: function (player, compare, settings, value, extra = undefined, header = undefined) {
+            get: function (player, compare, settings, value, extra = undefined, header = undefined, alternateSelf = undefined) {
                 // Get value from value block
                 let output = this.rules.get(value);
 
                 // Get value from format expression
                 if (typeof output == 'undefined') {
                     if (this.format instanceof Expression) {
-                        output = new ExpressionScope(settings).with(player, compare).addSelf(value).add(extra).via(header).eval(this.format);
+                        output = new ExpressionScope(settings).with(player, compare).addSelf(alternateSelf).addSelf(value).add(extra).via(header).eval(this.format);
                     } else if (typeof this.format == 'function') {
                         output = this.format(player, compare, settings, value, extra, header);
                     }
@@ -1807,7 +1934,7 @@ class Settings {
 
     // Add alias
     addAlias (name) {
-        let object = (this.definition || this.header);
+        let object = (this.definition || this.header || this.embed);
         if (object) {
             object.alias = name;
         }
@@ -1815,7 +1942,7 @@ class Settings {
 
     // Add custom style
     addStyle (name, value) {
-        let object = (this.row || this.definition || this.header || this.sharedCategory || this.shared);
+        let object = (this.row || this.definition || this.header || this.embed || this.sharedCategory || this.shared);
         if (object) {
             if (!object.style) {
                 object.style = new CellStyle();
@@ -1827,21 +1954,21 @@ class Settings {
 
     // Add color expression to the header
     addColorExpression (expression) {
-        let object = (this.row || this.definition || this.header);
+        let object = (this.row || this.definition || this.header || this.embed);
         if (object) {
             object.color.expr = expression;
         }
     }
 
     addAliasExpression (expression) {
-        let object = (this.row || this.definition || this.header || this.category);
+        let object = (this.row || this.definition || this.header || this.embed || this.category);
         if (object) {
             object['expa'] = expression;
         }
     }
 
     addGlobOrder (index, order) {
-        let object = this.header;
+        let object = (this.header || this.embed);
         if (object) {
             object['glob_order'] = {
                 ord: order,
@@ -1852,14 +1979,14 @@ class Settings {
 
     // Add format expression to the header
     addFormatExpression (expression) {
-        let object = (this.row || this.definition || this.header);
+        let object = (this.row || this.definition || this.header || this.embed);
         if (object) {
             object.value.format = expression;
         }
     }
 
     addBreaklineRule (value) {
-        let object = (this.row || this.definition || this.header);
+        let object = (this.row || this.definition || this.header || this.embed);
         if (object) {
             object.value.breakline = value;
         }
@@ -1867,21 +1994,21 @@ class Settings {
 
     // Add format extra expression to the header
     addFormatExtraExpression (expression) {
-        let object = (this.row || this.definition || this.header);
+        let object = (this.row || this.definition || this.header || this.embed);
         if (object) {
             object.value.extra = expression;
         }
     }
 
     addFormatStatisticsExpression (expression) {
-        let object = (this.row || this.definition || this.header);
+        let object = (this.row || this.definition || this.header || this.embed);
         if (object) {
             object.value.formatStatistics = expression;
         }
     }
 
     addFormatDifferenceExpression (expression) {
-        let object = (this.row || this.definition || this.header);
+        let object = (this.row || this.definition || this.header || this.embed);
         if (object) {
             object.value.formatDifference = expression;
         }
@@ -1889,7 +2016,7 @@ class Settings {
 
     // Add color rule to the header
     addColorRule (condition, referenceValue, value) {
-        let object = (this.row || this.definition || this.header);
+        let object = (this.row || this.definition || this.header || this.embed);
         if (object) {
             object.color.rules.addRule(condition, referenceValue, value);
         }
@@ -1897,7 +2024,7 @@ class Settings {
 
     // Add value rule to the header
     addValueRule (condition, referenceValue, value) {
-        let object = (this.row || this.definition || this.header);
+        let object = (this.row || this.definition || this.header || this.embed);
         if (object) {
             object.value.rules.addRule(condition, referenceValue, value);
         }
@@ -1924,9 +2051,13 @@ class Settings {
         this.globals[name] = value;
     }
 
+    addGlobalEmbedable (name, value) {
+        (this.embed || this.definition || this.globals)[name] = value;
+    }
+
     // Add shared variable
     addShared (name, value) {
-        let object = (this.row || this.definition || this.header || this.sharedCategory || this.shared);
+        let object = (this.row || this.definition || this.header || this.embed || this.sharedCategory || this.shared);
         if (object) {
             object[name] = value;
         }
@@ -1936,7 +2067,7 @@ class Settings {
 
     // Add extension
     addExtension (... names) {
-        let object = (this.row || this.definition || this.header || this.sharedCategory || this.shared);
+        let object = (this.row || this.definition || this.header || this.embed || this.sharedCategory || this.shared);
         if (object) {
             if (!object.extensions) {
                 object.extensions = [];
@@ -1953,7 +2084,7 @@ class Settings {
 
     // Add local variable
     addLocal (name, value) {
-        let object = (this.row || this.definition || this.header);
+        let object = (this.row || this.definition || this.header || this.embed);
         if (object) {
             object[name] = value;
         }
@@ -1961,20 +2092,62 @@ class Settings {
 
     // Add action
     addAction (value) {
-        let object = this.header;
+        let object = (this.header || this.embed);
         if (object) {
             object['action'] = value;
         }
     }
 
     addHeaderVariable (name, value) {
-        let object = (this.row || this.definition || this.header || this.sharedCategory || this.shared);
+        let object = (this.row || this.definition || this.header || this.embed || this.sharedCategory || this.shared);
         if (object) {
             if (!object.vars) {
                 object.vars = {};
             }
 
             object.vars[name] = value;
+        }
+    }
+
+    embedBlock (name) {
+        this.push();
+
+        this.embed = {
+            name,
+            embedded: true,
+            headers: [],
+            value: this.getValueBlock(),
+            color: this.getColorBlock()
+        }
+    }
+
+    pushEmbed () {
+        let obj = this.embed;
+        if (obj && this.category) {
+            this.push();
+
+            for (let definitionName of obj.extensions || []) {
+                this.mergeDefinition(obj, definitionName);
+            }
+
+            if (!obj.clean) {
+                this.merge(obj, this.sharedCategory);
+                this.merge(obj, this.shared);
+            } else {
+                this.merge(obj, {
+                    visible: true,
+                    statistics_color: true
+                });
+            }
+
+            if (obj.background) {
+                obj.color.rules.addRule('db', 0, obj.background);
+            }
+
+            if (this.category) {
+                this.category.headers.push(obj);
+                this.embed = null;
+            }
         }
     }
 
@@ -2007,6 +2180,8 @@ class Settings {
             functions: this.functions,
             variables: this.variablesReference,
             lists: {},
+            array: [],
+            array_unfiltered: [],
             // Constants have to be propagated through the environment
             constants: this.constants,
             row_indexes: this.row_indexes,
@@ -2037,13 +2212,13 @@ class Settings {
         if (typeof this.globals.layout != 'undefined') {
             return this.globals.layout;
         } else {
-            if (this.type == TableType.Players) {
+            if (this.type == ScriptType.Players) {
                 return [
                     ... (hasStatistics ? [ 'statistics', hasRows ? '|' : '_' ] : []),
                     ... (hasRows ? (hasStatistics ? [ 'rows', '_' ] : [ 'rows', '|', '_' ]) : []),
                     'table'
                 ];
-            } else if (this.type == TableType.Group) {
+            } else if (this.type == ScriptType.Group) {
                 return [
                     'table',
                     ... (hasStatistics || hasRows || hasMembers ? [ '_' ] : []),
@@ -2134,7 +2309,7 @@ class Settings {
         }
     }
 
-    evalHistory (array) {
+    evalHistory (array, array_unfiltered) {
         // Evaluate row indexes
         this.evalRowIndexes(array);
 
@@ -2153,6 +2328,9 @@ class Settings {
 
         // Mark scope as segmented as well
         scope.segmented = true;
+
+        this.array = array;
+        this.array_unfiltered = array_unfiltered;
 
         // Iterate over all variables
         for (let [ name, variable ] of Object.entries(this.variables)) {
@@ -2189,7 +2367,7 @@ class Settings {
         this.evalRules();
     }
 
-    evalPlayers (array, simulatorLimit, entryLimit) {
+    evalPlayers (array, array_unfiltered, simulatorLimit, entryLimit) {
         // Evaluate row indexes
         this.evalRowIndexes(array, true);
 
@@ -2214,6 +2392,8 @@ class Settings {
             })
         }
 
+        this.array = array;
+        this.array_unfiltered = array_unfiltered;
         this.timestamp = array.timestamp;
         this.reference = array.reference;
 
@@ -2284,7 +2464,7 @@ class Settings {
         this.evalRules();
     }
 
-    evalGuilds (array) {
+    evalGuilds (array, array_unfiltered) {
         // Evaluate row indexes
         this.evalRowIndexes(array, true);
 
@@ -2313,6 +2493,8 @@ class Settings {
             })
         }
 
+        this.array = array;
+        this.array_unfiltered = array_unfiltered;
         this.timestamp = array.timestamp;
         this.reference = array.reference;
 
@@ -2488,14 +2670,14 @@ class Settings {
         Old shit
     */
 
-    static parseConstants(string) {
+    static parseConstants(string, type) {
         let settings = new Settings('');
 
         for (var line of Settings.handleMacros(string)) {
             let trimmed = Settings.stripComments(line)[0].trim();
 
             for (let command of SettingsCommands) {
-                if (command.canParse && command.canParseAlways && command.isValid(trimmed)) {
+                if (command.canParse && command.canParseAlways && command.type == type && command.isValid(trimmed)) {
                     command.parse(settings, trimmed);
                     break;
                 }
@@ -2505,7 +2687,20 @@ class Settings {
         return settings;
     }
 
-    static stripComments (line) {
+    static checkEscapeTrail (line, index) {
+        if (line[index - 1] != '\\') {
+            return false;
+        } else {
+            let escape = true;
+            for (let i = index - 2; i >= 0 && line[i] == '\\'; i--) {
+                escape = !escape;
+            }
+
+            return escape;
+        }
+    }
+
+    static stripComments (line, escape = true) {
         let comment;
         let commentIndex = -1;
 
@@ -2516,7 +2711,7 @@ class Settings {
                 else {
                     ignored = ignored ? false : line[i];
                 }
-            } else if (line[i] == '#' && !ignored) {
+            } else if (!Settings.checkEscapeTrail(line, i) && line[i] == '#' && !ignored) {
                 commentIndex = i;
                 break;
             }
@@ -2525,14 +2720,23 @@ class Settings {
         if (commentIndex != -1) {
             comment = line.slice(commentIndex);
             line = line.slice(0, commentIndex);
+
+            if (escape) {
+                line = line.replaceAll(/\\(\\|#)/g, (_, capture) => {
+                    commentIndex -= 1;
+                    return capture;
+                });
+            }
+        } else if (escape) {
+            line = line.replaceAll(/\\(\\|#)/g, (_, capture) => capture);
         }
 
         return [ line, comment, commentIndex ];
     }
 
     // Format code
-    static format (string) {
-        var settings = Settings.parseConstants(string);
+    static format (string, type = 0) {
+        var settings = Settings.parseConstants(string, type);
         var content = '';
 
         SettingsHighlightCache.setCurrent(settings);
@@ -2541,7 +2745,7 @@ class Settings {
             if (SettingsHighlightCache.has(line)) {
                 content += SettingsHighlightCache.get(line);
             } else {
-                let [ commandLine, comment, commentIndex ] = Settings.stripComments(line);
+                let [ commandLine, comment, commentIndex ] = Settings.stripComments(line, false);
                 let [ , prefix, trimmed, suffix ] = commandLine.match(/^(\s*)(\S(?:.*\S)?)?(\s*)$/);
 
                 let currentContent = '';
@@ -2549,7 +2753,7 @@ class Settings {
 
                 if (trimmed) {
                     let command = SettingsCommands.find(command => command.isValid(trimmed));
-                    if (command) {
+                    if (command && command.type == type) {
                         currentContent += command.format(settings, trimmed);
                     } else {
                         currentContent += SFormat.Error(trimmed);
@@ -2641,7 +2845,7 @@ const SettingsManager = new (class {
     }
 
     tracker () {
-        return new Settings(this.get('tracker', '', ''));
+        return new Settings(this.get('tracker', '', ''), ScriptType.Tracker);
     }
 
     trackerConfig () {
@@ -2914,3 +3118,132 @@ const Templates = new (class {
         return name in this.templates ? this.templates[name].content : '';
     }
 })();
+
+class ScriptEditor {
+    constructor (parent, editorType, changeCallback) {
+        this.changeCallback = changeCallback;
+        this.editorType = editorType;
+
+        this.$parent = parent;
+        this.$area = this.$parent.find('textarea');
+        this.$wrapper = this.$parent.find('.ta-wrapper');
+        this.$mask = this.$parent.find('.ta-content');
+
+        this.$mask.css('top', this.$area.css('padding-top'));
+        this.$mask.css('left', this.$area.css('padding-left'));
+        this.$mask.css('font', this.$area.css('font'));
+        this.$mask.css('font-family', this.$area.css('font-family'));
+        this.$mask.css('line-height', this.$area.css('line-height'));
+
+        let $maskClone = this.$mask.clone();
+
+        this.$area.on('input', (event) => {
+            var val = $(event.currentTarget).val();
+            if (this.pasted) {
+                val = val.replace(/\t/g, ' ');
+
+                var ob = this.$area.get(0);
+
+                var ob1 = ob.selectionStart;
+                var ob2 = ob.selectionEnd;
+                var ob3 = ob.selectionDirection;
+
+                ob.value = val;
+
+                ob.selectionStart = ob1;
+                ob.selectionEnd = ob2;
+                ob.selectionDirection = ob3;
+
+                this.pasted = false;
+            }
+
+            let scrollTransform = this.$mask.css('transform');
+            this.$mask.remove();
+            this.$mask = $maskClone.clone().html(Settings.format(val, this.editorType)).css('transform', scrollTransform).appendTo(this.$wrapper);
+
+            if (typeof this.changeCallback === 'function') {
+                this.changeCallback(val);
+            }
+        }).trigger('input');
+
+        this.$area.on('scroll', (event) => {
+            var sy = $(event.currentTarget).scrollTop();
+            var sx = $(event.currentTarget).scrollLeft();
+            this.$mask.css('transform', `translate(${ -sx }px, ${ -sy }px)`);
+        });
+
+        this.$area.keydown((e) => {
+            if (e.key == 'Tab') {
+                e.preventDefault();
+
+                let a = this.$area.get(0);
+                let v = this.$area.val();
+                let s = a.selectionStart;
+                let d = a.selectionEnd;
+
+                if (s == d) {
+                    this.$area.val(v.substring(0, s) + '  ' + v.substring(s));
+                    a.selectionStart = s + 2;
+                    a.selectionEnd = d + 2;
+                } else {
+                    let o = 0, oo = 0, i;
+                    for (i = d - 1; i > s; i--) {
+                        if (v[i] == '\n') {
+                            v = v.substring(0, i + 1) + '  ' + v.substring(i + 1);
+                            oo++;
+                        }
+                    }
+
+                    while (i >= 0) {
+                        if (v[i] == '\n') {
+                            v = v.substring(0, i + 1) + '  ' + v.substring(i + 1);
+                            o++;
+                            break;
+                        } else {
+                            i--;
+                        }
+                    }
+
+                    this.$area.val(v);
+                    a.selectionStart = s + o * 2;
+                    a.selectionEnd = d + (oo + o) * 2;
+                }
+
+                this.$area.trigger('input');
+            }
+        });
+
+        this.$area.on('paste', () => {
+            this.pasted = true;
+        });
+
+        this.$area.on('dragover dragenter', e => {
+            e.preventDefault();
+            e.stopPropagation();
+        }).on('drop', e => {
+            if (_dig(e, 'originalEvent', 'dataTransfer', 'files', 0, 'type') == 'text/plain') {
+                e.preventDefault();
+                e.stopPropagation();
+
+                let r = new FileReader();
+                r.readAsText(e.originalEvent.dataTransfer.files[0], 'UTF-8');
+                r.onload = f => {
+                    this.$area.val(f.target.result).trigger('input');
+                }
+            }
+        });
+    }
+
+    get content () {
+        return this.$area.val();
+    }
+
+    set content (val) {
+        this.$area.val(val);
+        this.$area.trigger('input');
+    }
+
+    scrollTop () {
+        this.$area.scrollTop(0).trigger('scroll');
+    }
+}

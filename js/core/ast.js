@@ -1,8 +1,8 @@
 const ExpressionRegExp = (function () {
     try {
-        return new RegExp("(\\'[^\\']*\\'|\\\"[^\\\"]*\\\"|\\~\\d+|\\`[^\\`]*\\`|\\;|\\$\\!|\\$|\\{|\\}|\\|\\||\\%|\\!\\=|\\!|\\&\\&|\\>\\=|\\<\\=|\\=\\=|\\(|\\)|\\+|\\-|\\/|\\*|\\>|\\<|\\?|\\:|\\.+this|(?<!\\.)\\d+(?:.\\d+)?e\\d+|(?<!\\.)\\d+\\.\\d+|\\.|\\[|\\]|\\,)");
+        return new RegExp("(\\'[^\\']*\\'|\\\"[^\\\"]*\\\"|\\~\\d+|\\`[^\\`]*\\`|\\;|\\$\\!|\\$|\\{|\\}|\\|\\||\\%|\\^|\\!\\=|\\!|\\&\\&|\\>\\=|\\<\\=|\\=\\=|\\(|\\)|\\+|\\-|\\/|\\*|\\>|\\<|\\?|\\:|\\.+this|(?<!\\.)\\d+(?:.\\d+)?e\\d+|(?<!\\.)\\d+\\.\\d+|\\.|\\[|\\]|\\,)");
     } catch (e) {
-        return new RegExp("(\\'[^\\']*\\'|\\\"[^\\\"]*\\\"|\\~\\d+|\\`[^\\`]*\\`|\\;|\\$\\!|\\$|\\{|\\}|\\|\\||\\%|\\!\\=|\\!|\\&\\&|\\>\\=|\\<\\=|\\=\\=|\\(|\\)|\\+|\\-|\\/|\\*|\\>|\\<|\\?|\\:|\\.+this|\\d+(?:.\\d+)?e\\d+|\\d+\\.\\d+|\\.|\\[|\\]|\\,)");
+        return new RegExp("(\\'[^\\']*\\'|\\\"[^\\\"]*\\\"|\\~\\d+|\\`[^\\`]*\\`|\\;|\\$\\!|\\$|\\{|\\}|\\|\\||\\%|\\^|\\!\\=|\\!|\\&\\&|\\>\\=|\\<\\=|\\=\\=|\\(|\\)|\\+|\\-|\\/|\\*|\\>|\\<|\\?|\\:|\\.+this|\\d+(?:.\\d+)?e\\d+|\\d+\\.\\d+|\\.|\\[|\\]|\\,)");
     }
 })();
 
@@ -114,12 +114,12 @@ class ExpressionScope {
     }
 
     has (key) {
-        if (this.self.length && typeof this.self[0] === 'object' && key in this.self[0]) {
+        if (this.self.length && typeof this.self[0] === 'object' && this.self[0] !== null && key in this.self[0]) {
             return true;
         }
 
         for (let i = 0; i < this.indirect.length; i++) {
-            if (typeof this.indirect[i] === 'object' && key in this.indirect[i]) {
+            if (typeof this.indirect[i] === 'object' && this.indirect[i] !== null && key in this.indirect[i]) {
                 return true;
             }
         }
@@ -128,12 +128,12 @@ class ExpressionScope {
     }
 
     get (key) {
-        if (this.self.length && typeof this.self[0] === 'object' && key in this.self[0]) {
+        if (this.self.length && typeof this.self[0] === 'object' && this.self[0] !== null && key in this.self[0]) {
             return this.self[0][key];
         }
 
         for (let i = 0; i < this.indirect.length; i++) {
-            if (typeof this.indirect[i] === 'object' && key in this.indirect[i]) {
+            if (typeof this.indirect[i] === 'object' && this.indirect[0] !== null && key in this.indirect[i]) {
                 return this.indirect[i][key];
             }
         }
@@ -233,10 +233,16 @@ class Expression {
                     }).join('') }\``;
                 } else if (extraIdentifiers && extraIdentifiers.includes(token)) {
                     value = SFormat.Reserved(token);
-                } else if (SP_FUNCTIONS.hasOwnProperty(token) || SP_ARRAY_FUNCTIONS.hasOwnProperty(token) || ['each', 'map', 'filter', 'format', 'difference', 'difference', 'sort', 'var', 'tracker', 'some', 'all' ].includes(token) || root.functions.hasOwnProperty(token)) {
+                } else if (SP_FUNCTIONS.hasOwnProperty(token) || SP_ARRAY_FUNCTIONS.hasOwnProperty(token) || ['each', 'map', 'filter', 'format', 'difference', 'array', 'sort', 'var', 'tracker', 'some', 'all' ].includes(token) || root.functions.hasOwnProperty(token)) {
                     value = SFormat.Function(token);
-                } else if (['undefined', 'null', 'player', 'reference', 'joined', 'kicked', 'true', 'false', 'index', 'database', 'row_index', 'classes', 'header', 'entries', 'loop_index', 'loop_array', 'table_timestamp', 'table_reference' ].includes(token) || root.variables.hasOwnProperty(token)) {
+                } else if (['undefined', 'null', 'player', 'reference', 'joined', 'kicked', 'true', 'false', 'index', 'database', 'row_index', 'classes', 'header', 'entries', 'loop_index', 'loop_array', 'table_timestamp', 'table_reference', 'table_array', 'table_array_unfiltered' ].includes(token)) {
                     value = SFormat.Constant(token);
+                } else if (root.variables.hasOwnProperty(token)) {
+                    if (root.variables[token].tableVariable) {
+                        value = SFormat.Global(token);
+                    } else {
+                        value = SFormat.Constant(token);
+                    }
                 } else if (/(\.*)this/.test(token)) {
                     value = SFormat.Constant(token);
                 } else if (SP_KEYWORD_MAPPING_0.hasOwnProperty(token)) {
@@ -440,58 +446,52 @@ class Expression {
         return /^\`.*\`$/.test(token) && follow == '(';
     }
 
+    evalRepeatedExpression (terminator, separator, generator, emptyGenerator) {
+        const args = [];
+
+        if (this.peek() == terminator) {
+            this.get();
+            return args;
+        }
+
+        do {
+            const pk = this.peek();
+            if (pk == separator || pk == terminator) {
+                if (emptyGenerator) {
+                    args.push(emptyGenerator(args.length));
+                }
+            } else {
+                args.push(generator(args.length));
+            }
+        } while (this.get() == separator);
+        return args;
+    }
+
     // Get global function
     getFunction () {
-        var name = this.get();
+        const name = this.get();
         this.get();
 
-        var args = [];
-
-        if (this.peek() == ')') {
-            this.get();
-            return {
-                op: name,
-                args: args
-            };
-        } else {
-            do {
-                args.push(this.evalExpression());
-            } while (this.get() == ',');
-
-            return {
-                op: name,
-                args: args
-            }
-        }
+        return {
+            op: name,
+            args: this.evalRepeatedExpression(')', ',', () => this.evalExpression(), () => 'undefined')
+        };
     }
 
     getTemplate () {
-        var val = this.get();
-        var args = [
-            {
-                raw: true,
-                args: val.slice(1, val.length - 1)
-            }
-        ];
-
+        const val = this.get();
         this.get();
 
-        if (this.peek() == ')') {
-            this.get();
-            return {
-                op: 'format',
-                args: args
-            };
-        } else {
-            do {
-                args.push(this.evalExpression());
-            } while (this.get() == ',');
-
-            return {
-                op: 'format',
-                args: args
-            }
-        }
+        return {
+            op: 'format',
+            args: [
+                {
+                    raw: true,
+                    args: val.slice(1, val.length - 1)
+                },
+                ... this.evalRepeatedExpression(')', ',', () => this.evalExpression(), () => 'undefined')
+            ]
+        };
     }
 
     // Is array
@@ -503,27 +503,20 @@ class Expression {
     getArray () {
         this.get();
 
-        var args = [];
-
-        if (this.peek() == ']') {
-            this.get();
-            return {
-                op: '[',
-                args: args
-            }
-        }
-
-        do {
-            args.push({
-                key: args.length,
-                val: this.evalExpression()
-            });
-        } while (this.get() == ',');
-
         return {
             op: '[',
-            args: args
-        }
+            args: this.evalRepeatedExpression(']', ',', (key) => {
+                return {
+                    key,
+                    val: this.evalExpression()
+                };
+            }, (key) => {
+                return {
+                    key,
+                    val: 'undefined'
+                };
+            })
+        };
     }
 
     // Is object
@@ -531,33 +524,24 @@ class Expression {
         return token == '{';
     }
 
+    getObjectItem () {
+        const key = this.peek(1) == ':' ? this.getString() : this.evalExpression();
+        this.get();
+
+        return {
+            key: key,
+            val: this.evalExpression()
+        };
+    }
+
     // Get array
     getObject () {
         this.get();
 
-        var args = [];
-
-        if (this.peek() == '}') {
-            this.get();
-            return {
-                op: '{',
-                args: args
-            }
-        }
-
-        do {
-            let key = this.peek(1) == ':' ? this.getString() : this.evalExpression();
-            this.get();
-            args.push({
-                key: key,
-                val: this.evalExpression()
-            });
-        } while (this.get() == ',');
-
         return {
             op: '{',
-            args: args
-        }
+            args: this.evalRepeatedExpression('}', ',', () => this.getObjectItem(), false)
+        };
     }
 
     // Is object access
@@ -647,7 +631,7 @@ class Expression {
 
     getHighPriority () {
         let node = this.getVal();
-        while (['*', '/', '%'].includes(this.peek())) {
+        while (this.peek() == '^') {
             node = {
                 op: SP_OPERATORS[this.get()],
                 args: [node, this.getVal()]
@@ -657,12 +641,24 @@ class Expression {
         return node;
     }
 
-    getLowPriority () {
+    getMediumPriority () {
         let node = this.getHighPriority();
-        while (['+', '-'].includes(this.peek())) {
+        while (['*', '/', '%'].includes(this.peek())) {
             node = {
                 op: SP_OPERATORS[this.get()],
                 args: [node, this.getHighPriority()]
+            }
+        }
+
+        return node;
+    }
+
+    getLowPriority () {
+        let node = this.getMediumPriority();
+        while (['+', '-'].includes(this.peek())) {
+            node = {
+                op: SP_OPERATORS[this.get()],
+                args: [node, this.getMediumPriority()]
             };
         }
 
@@ -898,7 +894,8 @@ class Expression {
                     // Return correct result
                     switch (node.op) {
                         case 'each': {
-                            return values.reduce((a, b) => a + b, this.evalInternal(scope, node.args[2]) || 0);
+                            const def = typeof node.args[2] === 'undefined' ? 0 : this.evalInternal(scope, node.args[2]);
+                            return values.reduce((a, b) => a + b, def);
                         }
                         case 'filter': return array.filter((a, i) => values[i]);
                         case 'map': return values;
@@ -961,6 +958,8 @@ class Expression {
                     } else {
                         return a - b;
                     }
+                } else if (node.op == 'array' && node.args.length == 1) {
+                    return this.evalToArray(scope, node.args[0]);
                 } else if (node.op == '[a') {
                     var object = this.evalInternal(scope, node.args[0]);
                     if (object) {
@@ -972,7 +971,7 @@ class Expression {
                     var object = this.evalInternal(scope, node.args[0]);
                     var func = this.evalInternal(scope, node.args[1]);
 
-                    if (object != undefined && object[func]) {
+                    if (object != undefined && object[func] && typeof object[func] === 'function') {
                         return object[func](... node.args[2].map(param => this.evalInternal(scope, param)));
                     } else {
                         return undefined;
@@ -1043,6 +1042,10 @@ class Expression {
                 } else {
                     return undefined;
                 }
+            } else if (node == 'table_array') {
+                return scope.env.array;
+            } else if (node == 'table_array_unfiltered') {
+                return scope.env.array_unfiltered;
             } else if (node == 'table_timestamp') {
                 return scope.env.timestamp;
             } else if (node == 'table_reference') {
@@ -1070,7 +1073,8 @@ class Expression {
             } else if (scope.player && SP_KEYWORDS.hasOwnProperty(node)) {
                 return SP_KEYWORDS[node].expr(scope.player, scope.reference, scope.env);
             } else if (SP_KEYWORDS_INDIRECT.hasOwnProperty(node)) {
-                return SP_KEYWORDS_INDIRECT[node].expr(scope.player, scope.reference, scope.env, scope.getSelf());
+                const self = scope.getSelf();
+                return self && typeof self === 'object' ? SP_KEYWORDS_INDIRECT[node].expr(scope.player, scope.reference, scope.env, self) : undefined;
             } else if (scope && scope.has(node)) {
                 return scope.get(node);
             } else if (node in scope.env.variables) {
@@ -1105,9 +1109,6 @@ const SP_ARRAY_FUNCTIONS = {
         let values = Array.from(new Set(array));
         values.segmented = array.segmented;
         return values;
-    },
-    'array': (array) => {
-        return array;
     },
     'slice': (array, from, to) => {
         let values = array.slice(from, to);
@@ -1197,6 +1198,9 @@ const SP_FUNCTIONS = {
         } else {
             return Math.pow(value, exp);
         }
+    },
+    'exp': (value) => {
+        return Math.exp(value);
     },
     'sqrt': (value) => {
         if (isNaN(value)) {
@@ -1373,6 +1377,13 @@ const SP_FUNCTIONS = {
             return 0;
         }
     },
+    'hsl': (h, s, l, a) => {
+        if (isNaN(h) || isNaN(s) || isNaN(l)) {
+            return undefined;
+        } else {
+            return getColorFromHSLA(h, s, l, a);
+        }
+    },
     // RGB
     'rgb': (r, g, b) => {
         if (isNaN(r) || isNaN(g) || isNaN(b)) {
@@ -1493,6 +1504,9 @@ const SP_FUNCTIONS = {
         } else {
             return !!value;
         }
+    },
+    'img': (src, width, height) => {
+        return `<img src="${src}"${typeof width != 'undefined' ? ` width="${width}"` : ''}${typeof height != 'undefined' ? ` height="${height}"` : ''}/>`;
     }
 }
 
@@ -1503,6 +1517,7 @@ const SP_OPERATORS = {
     '-': (a, b) => a - b,
     '>': (a, b) => a > b,
     '<': (a, b) => a < b,
+    '^': (a, b) => Math.pow(a, b),
     '==': (a, b) => a == b,
     '===': (a, b) => a === b,
     '!=': (a, b) => a != b,
@@ -3083,6 +3098,14 @@ const SP_KEYWORD_MAPPING_4 = {
     'Potion Size': {
         expr: (p, c, e, i) => i.Size,
         format: (p, c, e, x) => x == 0 ? '' : x,
+        difference: false
+    },
+    'Inventory Kind': {
+        expr: (p, c, e, i) => i.Position ? i.Position[0] : undefined,
+        difference: false
+    },
+    'Inventory Slot': {
+        expr: (p, c, e, i) => i.Position ? i.Position[1] : undefined,
         difference: false
     }
 };

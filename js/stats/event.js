@@ -1,29 +1,10 @@
-// View
-class View {
-    constructor (parent) {
-        this.$parent = $(`#${ parent }`);
-    }
-
-    show () {
-
-    }
-
-    load () {
-
-    }
-
-    refresh () {
-
-    }
-}
-
 // Group Detail View
 class GroupDetailView extends View {
     constructor (parent) {
         super(parent);
 
         this.$table = this.$parent.find('[data-op="table"]');
-        this.table = new TableController(this.$table, TableType.Group);
+        this.table = new TableController(this.$table, ScriptType.Group);
 
         // Copy
         this.$parent.find('[data-op="copy"]').click(() => {
@@ -74,13 +55,13 @@ class GroupDetailView extends View {
         let exportConstraints = player => player.group == this.identifier;
 
         this.$parent.find('[data-op="export"]').click(() => {
-            DatabaseManager.export(null, this.group.List.map(entry => entry[0]), exportConstraints).then(Exporter.json);
+            DatabaseManager.export(null, this.list.map(entry => entry[0]), exportConstraints).then(Exporter.json);
         });
         this.$parent.find('[data-op="export-l"]').click(() => {
-            DatabaseManager.export(null, [ _dig(this.group.List, 0, 0) ], exportConstraints).then(Exporter.json);
+            DatabaseManager.export(null, [ _dig(this.list, 0, 0) ], exportConstraints).then(Exporter.json);
         });
         this.$parent.find('[data-op="export-l5"]').click(() => {
-            DatabaseManager.export(null, this.group.List.slice(0, 5).map(entry => entry[0]), exportConstraints).then(Exporter.json);
+            DatabaseManager.export(null, this.list.slice(0, 5).map(entry => entry[0]), exportConstraints).then(Exporter.json);
         });
         this.$parent.find('[data-op="export-s"]').click(() => {
             DatabaseManager.export(null, [ this.timestamp ], exportConstraints).then(Exporter.json);
@@ -172,13 +153,15 @@ class GroupDetailView extends View {
 
         this.$name.html(`${this.group.Latest.Name} <span style="opacity: 50%; font-weight: initial; font-size: initial">${this.identifier}</span>`);
 
-        this.timestamp = this.group.LatestTimestamp;
-        this.reference = (SiteOptions.always_prev && this.group.List[1] ? this.group.List[1][0] : undefined) || this.group.LatestTimestamp;
-
         var listTimestamp = [];
         var listReference = [];
 
-        for (var [ timestamp, g ] of this.group.List) {
+        this.list = SiteOptions.groups_empty ? this.group.List : this.group.List.filter(([, g]) => g.MembersPresent);
+
+        this.timestamp = _dig(this.list, 0, 0);
+        this.reference = (SiteOptions.always_prev ? _dig(this.list, 1, 0) : undefined) || this.timestamp;
+
+        for (var [ timestamp, g ] of this.list) {
             listTimestamp.push({
                 name: formatDate(timestamp),
                 value: timestamp,
@@ -705,7 +688,7 @@ class PlayerHistoryView extends View {
         super(parent);
 
         this.$table = this.$parent.find('[data-op="table"]');
-        this.table = new TableController(this.$table, TableType.History);
+        this.table = new TableController(this.$table, ScriptType.History);
 
         // Copy
         this.$parent.find('[data-op="copy"]').click(() => {
@@ -842,8 +825,8 @@ class BrowseView extends View {
         this.$table = this.$parent.find('[data-op="table"]');
 
         // Tables
-        this.tableBase = new TableController(this.$table, TableType.Players);
-        this.tableQ = new TableController(this.$table, TableType.Players);
+        this.tableBase = new TableController(this.$table, ScriptType.Players);
+        this.tableQ = new TableController(this.$table, ScriptType.Players);
 
         // Keep track of what table is displayed and swap if necessary later
         this.table = this.tableBase;
@@ -1182,7 +1165,7 @@ class BrowseView extends View {
 
         if (!(code in this.settingsRepo)) {
             this.settingsRepo[code] = $.ajax({
-                url: `https://sftools-api.herokuapp.com/scripts?key=${ code }`,
+                url: `https://sftools-api.herokuapp.com/scripts?key=${code.trim()}`,
                 type: 'GET',
                 async: false
             }).responseJSON.content;
@@ -1349,16 +1332,8 @@ class GroupsView extends View {
             this.show();
         });
 
-        this.$parent.find('[data-op="empty"]').checkbox(SiteOptions.groups_empty ? 'check' : 'uncheck').change((event) => {
-            SiteOptions.groups_empty = !SiteOptions.groups_empty;
-
-            this.empty = SiteOptions.groups_empty;
-            this.show();
-        });
-
         this.hidden = SiteOptions.groups_hidden;
         this.others = SiteOptions.groups_other;
-        this.empty = SiteOptions.groups_empty;
 
         this.$context = $('<div class="ui custom popup right center"></div>');
         this.$parent.prepend(this.$context);
@@ -1388,7 +1363,9 @@ class GroupsView extends View {
                 {
                     label: 'Share',
                     action: (source) => {
-                        DatabaseManager.export([ source.attr('data-id') ]).then(data => UI.OnlineShareFile.show(data));
+                        const group = source.attr('data-id');
+                        const members = DatabaseManager.Groups[group].List.reduce((memo, [, g]) => memo.concat(g.Members), []);
+                        DatabaseManager.export([ group, ... Array.from(new Set(members)) ]).then(data => UI.OnlineShareFile.show(data));
                     }
                 },
                 {
@@ -1409,17 +1386,22 @@ class GroupsView extends View {
         var index = 0;
         var index2 = 0;
 
-        var groups = Object.values(DatabaseManager.Groups).filter(g => this.empty || g.List.some(([, g]) => g.MembersPresent)).sort((a, b) => b.LatestTimestamp - a.LatestTimestamp);
+        const showEmpty = SiteOptions.groups_empty;
+        const comparer = showEmpty ? (a, b) => (b.LatestTimestamp - a.LatestTimestamp) : (a, b) => (b.LatestDisplayTimestamp - a.LatestDisplayTimestamp);
+        const groups = Object.values(DatabaseManager.Groups).filter(g => showEmpty || g.LatestDisplayTimestamp).sort(comparer);
+        const latestPlayer = showEmpty ? DatabaseManager.Latest : DatabaseManager.LatestPlayer;
 
         for (var i = 0, group; group = groups[i]; i++) {
-            var hidden = DatabaseManager.Hidden.has(group.Latest.Identifier);
+            const hidden = DatabaseManager.Hidden.has(group.Latest.Identifier);
+            const latest = showEmpty ? group.LatestTimestamp : group.LatestDisplayTimestamp;
+
             if (this.hidden || !hidden) {
                 if (group.Own) {
                     content += `
                         ${ index % 5 == 0 ? `${ index != 0 ? '</div>' : '' }<div class="row">` : '' }
                         <div class="column">
-                            <div class="ui segment clickable ${ DatabaseManager.Latest != group.LatestTimestamp ? 'border-red' : ''} ${ hidden ? 'css-entry-hidden' : '' }" data-id="${ group.Latest.Identifier }">
-                                <span class="css-timestamp">${ formatDate(group.LatestTimestamp) }</span>
+                            <div class="ui segment clickable ${ latestPlayer != latest ? 'border-red' : ''} ${ hidden ? 'css-entry-hidden' : '' }" data-id="${ group.Latest.Identifier }">
+                                <span class="css-timestamp">${ formatDate(latest) }</span>
                                 <img class="ui medium centered image" src="res/group.png">
                                 <h3 class="ui margin-medium-top margin-none-bottom centered muted header">${ group.Latest.Prefix }</h3>
                                 <h3 class="ui margin-none-top centered header">${ group.Latest.Name }</h3>
@@ -1431,8 +1413,8 @@ class GroupsView extends View {
                     content2 += `
                         ${ index2 % 5 == 0 ? `${ index2 != 0 ? '</div>' : '' }<div class="row">` : '' }
                         <div class="column">
-                            <div class="ui segment clickable ${ DatabaseManager.Latest != group.LatestTimestamp ? 'border-red' : ''} ${ hidden ? 'css-entry-hidden' : '' }" data-id="${ group.Latest.Identifier }">
-                                <span class="css-timestamp">${ formatDate(group.LatestTimestamp) }</span>
+                            <div class="ui segment clickable ${ latestPlayer != latest ? 'border-red' : ''} ${ hidden ? 'css-entry-hidden' : '' }" data-id="${ group.Latest.Identifier }">
+                                <span class="css-timestamp">${ formatDate(latest) }</span>
                                 <img class="ui medium centered image" src="res/group.png">
                                 <h3 class="ui margin-medium-top margin-none-bottom centered muted header">${ group.Latest.Prefix }</h3>
                                 <h3 class="ui margin-none-top centered header">${ group.Latest.Name }</h3>
@@ -1783,7 +1765,7 @@ class FilesView extends View {
     deleteAll () {
         UI.ConfirmDialog.show('Database wipe', 'Are you sure you want to delete all stored player data?', () => {
             PopupController.open(LoaderPopup);
-            DatabaseManager.removeTimestamps(... Object.keys(DatabaseManager.Timestamps)).then(() => this.show());
+            DatabaseManager.purge().then(() => this.show());
         }, true);
     }
 
@@ -1821,6 +1803,11 @@ class FilesView extends View {
         } else {
             DatabaseManager.hide(Object.values(this.selectedPlayers)).then(() => this.show());
         }
+    }
+
+    hideMigrate () {
+        PopupController.open(LoaderPopup);
+        DatabaseManager.migrateHiddenFiles().then(() => this.show());
     }
 
     // Import file via har
@@ -1871,6 +1858,7 @@ class FilesView extends View {
         this.$parent.find('[data-op="endpoint"]').click(() => this.importEndpoint());
         this.$parent.find('[data-op="shared"]').click(() => this.importCloud());
 
+        this.$migrateHidden = this.$parent.find('[data-op="hide-migrate"]').click(() => this.hideMigrate());
         this.$tags = this.$parent.find('[data-op="tags"]').click(() => this.tagSelected());
         this.$filters = this.$parent.find('[data-op="filters"]');
         this.$results = this.$parent.find('[data-op="files-search-results"]');
@@ -1975,6 +1963,7 @@ class FilesView extends View {
         let origins = this.$filter_origin.dropdown('get value');
         let type = parseInt(this.$filter_type.dropdown('get value'));
         let hidden = this.$filter_hidden.dropdown('get value');
+        let tags = this.$filter_tags.dropdown('get value');
 
         DatabaseManager.export(null, null, data => (
             (!prefixes || prefixes.length == 0 || prefixes.includes(data.prefix)) &&
@@ -1982,6 +1971,7 @@ class FilesView extends View {
             (player_identifiers.length == 0 || player_identifiers.includes(data.identifier)) &&
             (timestamps.length == 0 || timestamps.includes(data.timestamp)) &&
             (origins.length == 0 || origins.includes(`${data.origin}`)) &&
+            (tags.length == 0 || tags.includes(`${data.tag}`)) &&
             (!type || data.own != type - 1) &&
             (!SiteOptions.hidden || hidden.length == 0 || (SiteOptions.hidden && (data.hidden && hidden.includes('yes')) || (!data.hidden && hidden.includes('no'))))
         )).then(({ players }) => {
@@ -2003,8 +1993,9 @@ class FilesView extends View {
                     <td class="text-center">${ this.timeMap[player.timestamp] }</td>
                     <td class="text-center">${ this.prefixMap[player.prefix] }</td>
                     <td>${ player.name }</td>
-                    <td class="text-center">${ this.groupMap[player.group] || '' }</td>
+                    <td>${ this.groupMap[player.group] || '' }</td>
                     <td class="text-center">${ player.origin || '' }</td>
+                    <td>${ player.tag ? `<div class="ui horizontal label" style="background-color: ${_strToHSL(player.tag)}; color: white;">${player.tag}</div>` : '' }</td>
                 </tr>
             `).join('') + notice);
 
@@ -2089,46 +2080,53 @@ class FilesView extends View {
             this.tagFilter = undefined;
         }
 
-        this.currentFiles = _array_to_hash(DatabaseManager.PlayerTimestamps, (ts) => [ts, {
-            prettyDate: formatDate(ts),
-            playerCount: _len_where(DatabaseManager.Timestamps[ts], id => DatabaseManager._isPlayer(id)),
-            groupCount: _len_where(DatabaseManager.Timestamps[ts], id => !DatabaseManager._isPlayer(id)),
-            version: DatabaseManager.findDataFieldFor(ts, 'version'),
-            origin: DatabaseManager.findDataFieldFor(ts, 'origin'),
-            tags: (() => {
-                const tagMap = DatabaseManager.findUsedTags([ts]);
-                const tagEntries = _sort_des(Object.entries(tagMap), ([, a]) => a);
+        let currentFilesAll = (SiteOptions.groups_empty ? _int_keys(DatabaseManager.Timestamps) : DatabaseManager.PlayerTimestamps).map((ts) => {
+            return {
+                timestamp: ts,
+                prettyDate: formatDate(ts),
+                playerCount: _len_where(DatabaseManager.Timestamps[ts], id => DatabaseManager._isPlayer(id)),
+                groupCount: _len_where(DatabaseManager.Timestamps[ts], id => !DatabaseManager._isPlayer(id)),
+                version: DatabaseManager.findDataFieldFor(ts, 'version'),
+                origin: DatabaseManager.findDataFieldFor(ts, 'origin'),
+                tags: (() => {
+                    const tagMap = DatabaseManager.findUsedTags([ts]);
+                    const tagEntries = _sort_des(Object.entries(tagMap), ([, a]) => a);
 
-                let tagContent = '';
-                for (const [name, count] of tagEntries) {
-                    const countText = tagEntries.length > 1 ? ` (${count})` : '';
+                    let tagContent = '';
+                    for (const [name, count] of tagEntries) {
+                        const countText = tagEntries.length > 1 ? ` (${count})` : '';
 
-                    if (name === 'undefined') {
-                        if (tagEntries.length > 1) {
+                        if (name === 'undefined') {
+                            if (tagEntries.length > 1) {
+                                tagContent += `
+                                    <div class="ui gray horizontal label">None${countText}</div>
+                                `;
+                            }
+                        } else {
                             tagContent += `
-                                <div class="ui gray horizontal label">None${countText}</div>
+                                <div class="ui horizontal label" style="background-color: ${_strToHSL(name)}; color: white;">${name}${countText}</div>
                             `;
                         }
-                    } else {
-                        tagContent += `
-                            <div class="ui horizontal label" style="background-color: ${_strToHSL(name)}; color: white;">${name}${countText}</div>
-                        `;
                     }
-                }
 
-                return {
-                    tagList: Object.keys(tagMap),
-                    tagContent
-                };
-            })()
-        }]);
-
-        this.$resultsSimple.html(_sort_des(Object.entries(this.currentFiles), v => v[0]).filter(([, { tags: { tagList } }]) => {
+                    return {
+                        tagList: Object.keys(tagMap),
+                        tagContent
+                    };
+                })()
+            }
+        }).filter(({ tags: { tagList } }) => {
             return typeof this.tagFilter === 'undefined' || tagList.includes(this.tagFilter) || (tagList.includes('undefined') && this.tagFilter === '');
-        }).map(([timestamp, { prettyDate, playerCount, groupCount, version, origin, tags: { tagContent } }]) => {
-            const allHidden = !_any_true(DatabaseManager.Timestamps[timestamp], id => DatabaseManager.Players[id] && !_dig(DatabaseManager.Players, id, timestamp, 'Data', 'hidden'));
+        });
+
+        this.currentFiles = _array_to_hash(currentFilesAll, file => [file.timestamp, file]);
+
+        this.$resultsSimple.html(_sort_des(Object.entries(this.currentFiles), v => v[0]).map(([timestamp, { prettyDate, playerCount, groupCount, version, origin, tags: { tagContent } }]) => {
+            const players = DatabaseManager.Timestamps.array(timestamp).filter(id => DatabaseManager._isPlayer(id));
+            const hidden = _dig(DatabaseManager.Metadata, timestamp, 'hidden');
+
             return `
-                <tr data-tr-timestamp="${timestamp}" ${allHidden ? 'style="color: gray;"' : ''}>
+                <tr data-tr-timestamp="${timestamp}" ${hidden ? 'style="color: gray;"' : ''}>
                     <td class="selectable clickable text-center" data-timestamp="${timestamp}"><i class="circle ${ this.selectedFiles.includes(timestamp) ? '' : 'outline ' }icon"></i></td>
                     <td class="text-center">${ prettyDate }</td>
                     <td class="text-center">${ playerCount }</td>
@@ -2163,7 +2161,7 @@ class FilesView extends View {
                 if (_has(this.selectedFiles, timestamp)) {
                     for (const ts of toChange) {
                         $(`[data-timestamp="${ts}"] > i`).addClass('outline');
-                        _remove_unless_includes(this.selectedFiles, ts);
+                        _remove(this.selectedFiles, ts);
                     }
                 } else {
                     for (const ts of toChange) {
@@ -2202,6 +2200,7 @@ class FilesView extends View {
         this.prefixMap = _array_to_hash(DatabaseManager.Prefixes, (prefix) => [prefix, _pretty_prefix(prefix)]);
 
         this.timeArray = Object.entries(this.timeMap).sort((a, b) => parseInt(b[0]) - parseInt(a[0]));
+        this.tagsArray = Object.keys(DatabaseManager.findUsedTags()).filter(tag => tag !== 'undefined');
 
         const playerNameFrequency = {};
         for (const name of Object.values(this.playerMap)) {
@@ -2244,6 +2243,13 @@ class FilesView extends View {
                 <label>Prefix (<span data-op="unique-prefix"></span> unique)</label>
                 <select class="ui fluid search selection dropdown" multiple="" data-op="files-search-prefix">
                     ${ Object.entries(this.prefixMap).map(([prefix, value]) => `<option value="${ prefix }">${ value }</option>`).join('') }
+                </select>
+            </div>
+            <div class="field">
+                <label>Tags (<span data-op="unique-tags"></span> unique)</label>
+                <select class="ui fluid search selection dropdown" multiple="" data-op="files-search-tags">
+                    <option value="undefined">None</option>
+                    ${ this.tagsArray.map((tag) => `<option value="${ tag }">${ tag }</option>`).join('') }
                 </select>
             </div>
             <div class="field">
@@ -2307,6 +2313,11 @@ class FilesView extends View {
             placeholder: 'Any'
         });
 
+        this.$filter_tags = this.$parent.find('[data-op="files-search-tags"]').dropdown({
+            onChange: this.updateSearchResults.bind(this),
+            placeholder: 'Any'
+        });
+
         this.$filter_type = this.$parent.find('[data-op="files-search-type"]').dropdown({
             onChange: this.updateSearchResults.bind(this)
         });
@@ -2315,6 +2326,7 @@ class FilesView extends View {
         this.$parent.find('[data-op="unique-player"]').html(Object.keys(this.playerMap).length);
         this.$parent.find('[data-op="unique-group"]').html(Object.keys(this.groupMap).length - 1);
         this.$parent.find('[data-op="unique-prefix"]').html(Object.keys(this.prefixMap).length);
+        this.$parent.find('[data-op="unique-tags"]').html(this.tagsArray.length);
 
         this.updateSearchResults();
     }
@@ -2328,6 +2340,7 @@ class FilesView extends View {
         PopupController.close(LoaderPopup);
 
         this.$tags.toggle(this.simple);
+        this.$migrateHidden.toggle(!this.simple && SiteOptions.hidden);
 
         // Set counters
         if (this.lastChange != DatabaseManager.LastChange || forceUpdate) {
@@ -2359,7 +2372,7 @@ class SettingsView extends View {
         this.$parent.find('[data-op="browse"]').click(() => UI.OnlineTemplates.show());
         this.$parent.find('[data-op="templates"]').click(() => UI.Templates.show(this.settings.parent));
 
-        this.$parent.find('[data-op="copy"]').click(() => copyText(this.$area.val()));
+        this.$parent.find('[data-op="copy"]').click(() => copyText(this.editor.content));
         this.$parent.find('[data-op="prev"]').click(() => this.history(1));
         this.$parent.find('[data-op="next"]').click(() => this.history(-1));
 
@@ -2383,7 +2396,7 @@ class SettingsView extends View {
             }),
             onSave: value => {
                 if (value) {
-                    Templates.save(value, this.$area.val());
+                    Templates.save(value, this.editor.content);
 
                     this.settings.parent = value;
                     this.$settingsList.settings_selectionlist('set unsaved', true);
@@ -2402,121 +2415,12 @@ class SettingsView extends View {
             y: -0.25
         });
 
-        // Area
-        this.$area = this.$parent.find('textarea');
-        this.$wrapper = this.$parent.find('.ta-wrapper');
-        var $b = this.$parent.find('.ta-content');
-
-        // CSS
-        $b.css('top', this.$area.css('padding-top'));
-        $b.css('left', this.$area.css('padding-left'));
-        $b.css('font', this.$area.css('font'));
-        $b.css('font-family', this.$area.css('font-family'));
-        $b.css('line-height', this.$area.css('line-height'));
-
-        var $b_o = $b.clone();
-
-        // Input handling
-        this.$area.on('input', (event) => {
-            var val = $(event.currentTarget).val();
-            if (this.pasted) {
-                val = val.replace(/\t/g, ' ');
-
-                var ob = this.$area.get(0);
-
-                var ob1 = ob.selectionStart;
-                var ob2 = ob.selectionEnd;
-                var ob3 = ob.selectionDirection;
-
-                ob.value = val;
-
-                ob.selectionStart = ob1;
-                ob.selectionEnd = ob2;
-                ob.selectionDirection = ob3;
-
-                this.pasted = false;
-            }
-
-            // Set content
-            let scrollTransform = $b.css('transform');
-            $b.remove();
-            $b = $b_o.clone().html(Settings.format(val)).css('transform', scrollTransform).appendTo(this.$wrapper);
-
-            // Update
+        this.editor = new ScriptEditor(this.$parent, EditorType.DEFAULT, val => {
             this.$settingsList.settings_selectionlist('set unsaved', this.settings && val !== this.settings.content);
             if (!this.settings || val == this.settings.code) {
                 this.$save.addClass('disabled');
             } else {
                 this.$save.removeClass('disabled');
-            }
-        }).trigger('input');
-
-        // Scroll handling
-        this.$area.on('scroll', function () {
-            var sy = $(this).scrollTop();
-            var sx = $(this).scrollLeft();
-            $b.css('transform', `translate(${ -sx }px, ${ -sy }px)`);
-        });
-
-        this.$area.keydown((e) => {
-            if (e.key == 'Tab') {
-                e.preventDefault();
-
-                let a = this.$area.get(0);
-                let v = this.$area.val();
-                let s = a.selectionStart;
-                let d = a.selectionEnd;
-
-                if (s == d) {
-                    this.$area.val(v.substring(0, s) + '  ' + v.substring(s));
-                    a.selectionStart = s + 2;
-                    a.selectionEnd = d + 2;
-                } else {
-                    let o = 0, oo = 0, i;
-                    for (i = d - 1; i > s; i--) {
-                        if (v[i] == '\n') {
-                            v = v.substring(0, i + 1) + '  ' + v.substring(i + 1);
-                            oo++;
-                        }
-                    }
-
-                    while (i >= 0) {
-                        if (v[i] == '\n') {
-                            v = v.substring(0, i + 1) + '  ' + v.substring(i + 1);
-                            o++;
-                            break;
-                        } else {
-                            i--;
-                        }
-                    }
-
-                    this.$area.val(v);
-                    a.selectionStart = s + o * 2;
-                    a.selectionEnd = d + (oo + o) * 2;
-                }
-
-                this.$area.trigger('input');
-            }
-        });
-
-        // Paste handling
-        this.$area.on('paste', () => {
-            this.pasted = true;
-        });
-
-        this.$area.on('dragover dragenter', e => {
-            e.preventDefault();
-            e.stopPropagation();
-        }).on('drop', e => {
-            if (e.originalEvent.dataTransfer && e.originalEvent.dataTransfer.files.length && e.originalEvent.dataTransfer.files[0].type == 'text/plain') {
-                e.preventDefault();
-                e.stopPropagation();
-
-                let r = new FileReader();
-                r.readAsText(e.originalEvent.dataTransfer.files[0], 'UTF-8');
-                r.onload = f => {
-                    this.$area.val(f.target.result).trigger('input');
-                }
             }
         });
 
@@ -2576,7 +2480,7 @@ class SettingsView extends View {
         this.history();
 
         // Reset scrolling
-        this.$area.scrollTop(0).trigger('scroll');
+        this.editor.scrollTop();
     }
 
     updateSettings () {
@@ -2634,7 +2538,7 @@ class SettingsView extends View {
 
     saveApplyTemplate () {
         if (this.settings.parent) {
-            Templates.save(this.settings.parent, this.$area.val());
+            Templates.save(this.settings.parent, this.editor.content);
         }
 
         this.save();
@@ -2642,7 +2546,7 @@ class SettingsView extends View {
     }
 
     save () {
-        let code = this.$area.val();
+        let code = this.editor.content;
         if (code !== this.settings.content) {
             // Add into history
             SettingsManager.addHistory(this.settings.content, this.settings.name);
@@ -2685,14 +2589,12 @@ class SettingsView extends View {
             items: templates,
             onClick: value => {
                 if (PredefinedTemplates[value]) {
-                    this.$area.val(PredefinedTemplates[value]);
+                    this.editor.content = PredefinedTemplates[value];
                     this.settings.parent = '';
                 } else {
-                    this.$area.val(Templates.get(value));
+                    this.editor.content = Templates.get(value);
                     this.settings.parent = value;
                 }
-
-                this.$area.trigger('input');
             }
         });
     }
@@ -2709,12 +2611,10 @@ class SettingsView extends View {
         }
 
         if (this.index > 0) {
-            this.$area.val(history[this.index - 1].content);
+            this.editor.content = history[this.index - 1].content;
         } else {
-            this.$area.val(this.settings.content);
+            this.editor.content = this.settings.content;
         }
-
-        this.$area.trigger('input');
     }
 }
 
@@ -3055,8 +2955,7 @@ class TemplatesView extends View {
     }
 
     openTemplate () {
-        // Fill $area and hide
-        this.getCurrentView().$area.val(this.tmp.content).trigger('input');
+        this.getCurrentView().editor.content = this.tmp.content;
         this.hide();
     }
 
@@ -3184,12 +3083,12 @@ class TemplatesView extends View {
 
             if (this.tmp.online) {
                 // Unpublish first if online
-                let key = this.tmp.online.key;
-                let secret = this.tmp.online.secret;
+                let key = this.tmp.online.key.trim();
+                let secret = this.tmp.online.secret.trim();
 
                 // Remove online template
                 $.ajax({
-                    url: `https://sftools-api.herokuapp.com/scripts/delete?key=${ key }&secret=${ secret }`,
+                    url: `https://sftools-api.herokuapp.com/scripts/delete?key=${key}&secret=${ secret }`,
                     type: 'GET'
                 }).done(obj => {
                     if (obj.success) {
@@ -3217,7 +3116,7 @@ class TemplatesView extends View {
 
     show (template = null) {
         // Refresh stuff
-        this.currentContent = this.getCurrentView().$area.val();
+        this.currentContent = this.getCurrentView().editor.content;
         this.refreshList();
 
         // Open modal
@@ -3334,17 +3233,17 @@ class OnlineTemplatesView extends View {
         this.$input = this.$parent.find('[data-op="private-value"]');
 
         this.$parent.find('[data-op="private"]').click(() => {
-            var cur = this.$input.val();
+            var cur = this.$input.val().trim();
             if (cur) {
                 $.ajax({
-                    url: `https://sftools-api.herokuapp.com/scripts?key=${ cur }`,
+                    url: `https://sftools-api.herokuapp.com/scripts?key=${cur}`,
                     type: 'GET'
                 }).done((message) => {
                     if (message.success) {
                         if (UI.current == UI.Settings) {
-                            UI.Settings.$area.val(message.content).trigger('input');
+                            UI.Settings.editor.content = message.content;
                         } else {
-                            UI.SettingsFloat.$area.val(message.content).trigger('input');
+                            UI.SettingsFloat.editor.content = message.content;
                         }
 
                         this.hide();
@@ -3422,9 +3321,9 @@ class OnlineTemplatesView extends View {
                 }).done((message) => {
                     if (message.success) {
                         if (UI.current == UI.Settings) {
-                            UI.Settings.$area.val(message.content).trigger('input');
+                            UI.Settings.editor.content = message.content;
                         } else {
-                            UI.SettingsFloat.$area.val(message.content).trigger('input');
+                            UI.SettingsFloat.editor.content = message.content;
                         }
 
                         this.hide();
@@ -3500,9 +3399,17 @@ class OptionsView extends View {
     constructor (parent) {
         super(parent)
 
+        this.$dropdownTab = this.$parent.find('[data-op="dropdown-tab"]');
+        this.$dropdownTab.dropdown();
+        this.$dropdownTab.dropdown('set selected', SiteOptions.tab);
+        this.$dropdownTab.dropdown('setting', 'onChange', (value, text) => {
+            SiteOptions.tab = value;
+        });
+
         this.prepareCheckbox('always_prev', 'alwaysprev');
         this.prepareCheckbox('obfuscated', 'obfuscated');
         this.prepareCheckbox('insecure', 'insecure');
+        this.prepareCheckbox('groups_empty', 'empty-groups');
         this.prepareCheckbox('terms_accepted', 'terms');
 
         SiteOptions.onChange('terms_accepted', enabled => {
@@ -3510,6 +3417,34 @@ class OptionsView extends View {
                 this.$parent.find(`[data-op="checkbox-terms"]`).checkbox('set checked');
             } else {
                 PopupController.open(TermsAndConditionsPopup);
+            }
+        });
+
+        SiteOptions.onChange('groups_empty', () => DatabaseManager._updateLists());
+
+        this.$save = this.$parent.find('[data-op="save"]').click(() => {
+            Actions.setScript(this.editor.content);
+
+            this.$save.addClass('disabled');
+            this.$reset.addClass('disabled');
+        });
+
+        this.$reset = this.$parent.find('[data-op="reset"]').click(() => {
+            this.editor.content = Actions.getScript();
+        });
+
+        this.$parent.find('[data-op="remove"]').click(() => {
+            Actions.resetScript();
+            this.editor.content = Actions.getScript();
+        });
+
+        this.editor = new ScriptEditor(this.$parent, EditorType.ACTIONS, val => {
+            if (val === Actions.getScript()) {
+                this.$save.addClass('disabled');
+                this.$reset.addClass('disabled');
+            } else {
+                this.$save.removeClass('disabled');
+                this.$reset.removeClass('disabled');
             }
         });
     }
@@ -3523,12 +3458,14 @@ class OptionsView extends View {
     }
 
     show () {
-
+        this.editor.content = Actions.getScript();
     }
 }
 
-const PROFILES_PROPS = ['timestamp', 'origin', 'identifier', 'profile', 'prefix', 'tag', 'version', 'own', 'name', 'identifier', 'group', 'groupname'];
+const PROFILES_PROPS = ['timestamp', 'origin', 'identifier', 'profile', 'prefix', 'tag', 'version', 'own', 'name', 'identifier', 'group', 'groupname', 'save'];
 const PROFILES_INDEXES = ['own', 'identifier', 'timestamp', 'group', 'prefix', 'profile', 'origin', 'tag'];
+const PROFILES_GROUP_PROPS = ['timestamp', 'origin', 'identifier', 'profile', 'prefix', 'own', 'name', 'identifier', 'save'];
+const PROFILES_GROUP_INDEXES = ['own', 'identifier', 'timestamp', 'prefix', 'profile', 'origin'];
 
 class ProfilesView extends View {
     constructor (parent) {
@@ -3539,7 +3476,7 @@ class ProfilesView extends View {
 
     show () {
         let content = '';
-        for (const [key, { name, primary, secondary }] of ProfileManager.getProfiles()) {
+        for (const [key, { name, primary, secondary, primary_g, secondary_g }] of ProfileManager.getProfiles()) {
             content += `
                 <div class="row" style="margin-top: 1em; border: 1px solid black; border-radius: .25em;">
                     <div class="four wide column">
@@ -3559,12 +3496,19 @@ class ProfilesView extends View {
                     <div class="twelve wide column">
                         <table class="ui table" style="table-layout: fixed;">
                             <tr>
-                                <td style="width: 20%;">Primary filter</td>
+                                <td style="width: 20%;"></td>
+                                <td style="width: 40%;">Players</td>
+                                <td style="width: 40%;">Groups</td>
+                            </tr>
+                            <tr>
+                                <td>Primary filter</td>
                                 <td>${ this.showRules(primary) }</td>
+                                <td>${ this.showRules(primary_g) }</td>
                             </tr>
                             <tr>
                                 <td>Secondary filter</td>
                                 <td>${ secondary ? Expression.format(secondary, undefined, PROFILES_PROPS) : '<b>None</b>' }</td>
+                                <td>${ secondary_g ? Expression.format(secondary_g, undefined, PROFILES_GROUP_PROPS) : '<b>None</b>' }</td>
                             </tr>
                         </table>
                     </div>
@@ -3627,53 +3571,5 @@ class ProfilesView extends View {
             'below': '<',
             'equals': '='
         }[v] || '??';
-    }
-}
-
-// UI object collection
-const UI = {
-    current: null,
-    buttons: {},
-    show: function (screen, ... arguments) {
-        UI.current = screen;
-        $('.ui.container').addClass('css-hidden');
-        screen.$parent.removeClass('css-hidden');
-        screen.show(... arguments);
-
-        const name = screen.constructor.name;
-        if (this.buttons[name]) {
-            for (const [, el] of Object.entries(this.buttons)) {
-                el.classList.remove('title-active');
-            }
-            this.buttons[name].classList.add('title-active');
-        }
-    },
-    initialize: function () {
-        UI.Settings = new SettingsView('view-settings');
-        UI.SettingsFloat = new SettingsFloatView('modal-settings');
-        UI.Files = new FilesView('view-files');
-        UI.Players = new PlayersView('view-players');
-        UI.Groups = new GroupsView('view-groups');
-        UI.Browse = new BrowseView('view-browse');
-        UI.PlayerHistory = new PlayerHistoryView('view-history');
-        UI.PlayerDetail = new PlayerDetailFloatView('modal-playerdetail');
-        UI.GroupDetail = new GroupDetailView('view-groupdetail');
-        UI.ChangeLogs = new ChangeLogsView('view-changelog');
-        UI.ConfirmDialog = new ConfirmDialogView('modal-confirm');
-        UI.Templates = new TemplatesView('modal-templates');
-        UI.OnlineTemplates = new OnlineTemplatesView('modal-onlinetemplates');
-        UI.OnlineFiles = new OnlineFilesView('modal-onlinefile');
-        UI.OnlineShareFile = new OnlineShareFileView('modal-share');
-        UI.Profiles = new ProfilesView('view-profiles');
-        UI.Options = new OptionsView('view-options');
-    },
-    register: function (view, id) {
-        const element = document.getElementById(id);
-        this.buttons[view.constructor.name] = element;
-        if (element) {
-            element.addEventListener('click', () => {
-                UI.show(view);
-            });
-        }
     }
 }

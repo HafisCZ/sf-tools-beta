@@ -6,14 +6,14 @@ function trail (c, n) {
 // Format date
 function formatDateOnly (date) {
     if (date == '' || date == undefined) return '';
-    date = new Date(Math.max(0, date));
+    date = new Date(Math.max(0, Math.min(1e15, date)));
     return trail(date.getDate(), 2) + '.' + trail(date.getMonth() + 1, 2) + '.' + date.getFullYear();
 }
 
 // Format datetime
 function formatDate (date) {
     if (date == '' || date == undefined) return '';
-    date = new Date(Math.max(0, date));
+    date = new Date(Math.max(0, Math.min(1e15, date)));
     return trail(date.getDate(), 2) + '.' + trail(date.getMonth() + 1, 2) + '.' + date.getFullYear() + ' ' + trail(date.getHours(), 2) + ':' + trail(date.getMinutes(), 2);
 }
 
@@ -220,6 +220,7 @@ const SFormat = {
     Extras: string => `<span class="ta-extras"><span>${ escapeHTML(string) }</span></span>`,
     Macro: (string, noescape) => noescape ? `<span class="ta-macro">${ string }</span>` : `<span class="ta-macro">${ escapeHTML(string) }</span>`,
     Lambda: string => `<span class="ta-lambda">${ string }</span>`,
+    Global: string => `<span class="ta-global">${string}</span>`,
     Constant: string => `<span class="ta-constant">${ escapeHTML(string) }</span>`,
     Function: string => `<span class="ta-function">${ escapeHTML(string) }</span>`,
     Enum: string => `<span class="ta-enum">${ escapeHTML(string) }</span>`,
@@ -326,16 +327,18 @@ const NumberLabels = [
     [1E6, 'M']
 ];
 
-function formatAsNamedNumber(n) {
+function formatAsNamedNumber(rn) {
+    let p = rn < 0 ? "-" : "";
+    let n = Math.abs(rn);
     if (n < NumberLabels[NumberLabels.length - 1][0]) {
-        return n.toString().split('').map((char, i, array) => ((array.length - 1 - i) % 3 == 2) && i != 0 ? (' ' + char) : char).join('');
+        return p + n.toString().split('').map((char, i, array) => ((array.length - 1 - i) % 3 == 2) && i != 0 ? (' ' + char) : char).join('');
     } else if (n > NumberLabels[0][0]) {
-        return n.toExponential(3).replace('+', '');
+        return p + n.toExponential(3).replace('+', '');
     } else {
         for (let i = 0, unit; unit = NumberLabels[i]; i++) {
             if (n >= unit[0]) {
                 var num = n / unit[0];
-                return (num.toString().includes('.') && num.toString().split('.')[1].length > 3 ? num.toFixed(3) : num).toString().split('e')[0] + ' ' + unit[1];
+                return p + (num.toString().includes('.') && num.toString().split('.')[1].length > 3 ? num.toFixed(3) : num).toString().split('e')[0] + ' ' + unit[1];
             }
         }
     }
@@ -373,6 +376,35 @@ function getColorFromGradient(a, b, sample) {
     }
 
     return color;
+}
+
+function getColorFromHSLA (h, s, l, a) {
+    let r, g, b;
+
+    h = parseInt(h) / 360;
+    s = parseInt(s) / 100;
+    l = parseInt(l) / 100;
+
+    if (s == 0) {
+        r = g = b = l;
+    } else {
+        const hue2rgb = function (p, q, t) {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1/6) return p + (q - p) * 6 * t;
+            if (t < 1/2) return q;
+            if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+            return p;
+        }
+
+        var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        var p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1 / 3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1 / 3);
+    }
+
+    return getColorFromRGBA(Math.round(r * 255), Math.round(g * 255), Math.round(b * 255), a);
 }
 
 function getColorFromRGBA (r, g, b, a) {
@@ -528,6 +560,17 @@ const COLOR_MAP = {
     'yellowgreen': '#9acd32'
 };
 
+const CLASS_MAP = {
+    1: 'Warrior',
+    2: 'Mage',
+    3: 'Scout',
+    4: 'Assassin',
+    5: 'Battle Mage',
+    6: 'Berserker',
+    7: 'Demon Hunter',
+    8: 'Druid'
+};
+
 function getColorFromName (name) {
     if (name in COLOR_MAP) {
         return COLOR_MAP[name];
@@ -557,12 +600,15 @@ function mergeSoft (a, b) {
     return a;
 }
 
-const GOLD_CURVE = [ 0, 25, 50, 75 ];
-function getGoldCurve (value) {
-    for (var i = GOLD_CURVE.length; i < 650; i++) {
-        GOLD_CURVE[i] = Math.min(Math.floor((GOLD_CURVE[i - 1] + Math.floor(GOLD_CURVE[Math.floor(i / 2)] / 3) + Math.floor(GOLD_CURVE[Math.floor(i / 3)] / 4)) / 5) * 5, 1E9);
+const GOLD_CURVE = (function (base, max, clamp) {
+    for (let i = base.length; i < max; i++) {
+        base[i] = Math.min(Math.floor((base[i - 1] + Math.floor(base[Math.floor(i / 2)] / 3) + Math.floor(base[Math.floor(i / 3)] / 4)) / 5) * 5, clamp);
     }
 
+    return base;
+})([0, 25, 50, 75], 650, 1E9);
+
+function getGoldCurve (value) {
     return GOLD_CURVE[value] == undefined ? 1E9 : GOLD_CURVE[value];
 }
 
@@ -605,6 +651,8 @@ function getCSSColor (color) {
         return toCSSColor(COLOR_MAP[color]);
     } else if (/^\#([\da-fA-F]{8}|[\da-fA-F]{6}|[\da-fA-F]{3,4})$/.test(color)) {
         return toCSSColor(color);
+    } else if (/^[\\]+?\#([\da-fA-F]{8}|[\da-fA-F]{6}|[\da-fA-F]{3,4})$/.test(color)) {
+        return toCSSColor(color.substring(color.lastIndexOf('#')));
     } else if (/^([\da-fA-F]{8}|[\da-fA-F]{6}|[\da-fA-F]{3,4})$/.test(color)) {
         return toCSSColor('#' + color);
     } else {
@@ -1051,5 +1099,6 @@ const SP_ENUMS = {
     'RuneTypes': RUNETYPES,
     'UnderworldBuildings': UNDERWORLD_BUILDINGS,
     'ExperienceCurve': ExperienceRequired,
-    'ExperienceTotal': ExperienceTotal
+    'ExperienceTotal': ExperienceTotal,
+    'SoulsCurve': SoulsCurve
 };

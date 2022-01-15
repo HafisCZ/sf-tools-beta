@@ -38,6 +38,7 @@
 
         <script src="endpoint/endpoint.js"></script>
 
+        <script src="js/core/ui.js"></script>
         <script src="js/stats/event.js"></script>
         <script src="js/views.js"></script>
 
@@ -100,11 +101,12 @@
                             <thead>
                                 <tr>
                                     <th class="clickable text-center" data-op="mark-all"><i class="adjust icon"></i></th>
-                                    <th style="width: 20%;" class="text-center">Timestamp</th>
-                                    <th style="width: 15%;" class="text-center">Prefix</th>
-                                    <th style="width: 20%;">Name</th>
-                                    <th style="width: 20%;" class="text-center">Group</th>
+                                    <th style="width: 16%;" class="text-center">Timestamp</th>
+                                    <th style="width: 12%;" class="text-center">Prefix</th>
+                                    <th style="width: 17%;">Name</th>
+                                    <th style="width: 20%;">Group</th>
                                     <th style="width: 15%;" class="text-center">Origin</th>
+                                    <th style="width: 10%;">Tag</th>
                                 </tr>
                             </thead>
                             <tbody data-op="files-search-results">
@@ -179,9 +181,12 @@
                         </div>
                         <div class="sf-margin top-05">
                             <div class="ui fluid two buttons">
-                                <label class="fluid ui secondary basic button sf-margin top-05" data-op="hide">
+                                <label class="fluid ui secondary basic button sf-margin top-05" data-op="hide" data-tooltip="Works independently in simple & advanced mode!">
                                     <i class="small eye slash outline outline icon"></i> Hide
                                 </label>
+                                <button class="ui compact secondary icon button" style="flex: 0 0 3.5em; border-radius: 0 .28571429rem .28571429rem 0;" data-op="hide-migrate" data-tooltip="Mark files with all hidden players as hidden">
+                                    <i class="expand icon"></i>
+                                </button>
                                 <label class="fluid ui secondary basic button sf-margin top-05" data-op="tags">
                                     <i class="small tags icon"></i> Tags
                                 </label>
@@ -355,12 +360,6 @@
                 <div class="ui checkbox" data-op="hidden">
                     <input type="checkbox">
                     <label>Show hidden</label>
-                </div>
-            </div>
-            <div class="css-show-empty">
-                <div class="ui checkbox" data-op="empty">
-                    <input type="checkbox">
-                    <label>Show empty</label>
                 </div>
             </div>
         </div>
@@ -671,6 +670,11 @@
                             <label>Compare previous (guilds)</label>
                         </div>
                         <br/>
+                        <div class="ui checkbox sf-margin left-20 top-05" data-op="checkbox-empty-groups">
+                            <input type="checkbox">
+                            <label>Show empty groups</label>
+                        </div>
+                        <br/>
                         <div class="ui checkbox sf-margin left-20 top-05" data-op="checkbox-obfuscated">
                             <input type="checkbox">
                             <label>Obfuscate player names</label>
@@ -685,25 +689,41 @@
                             <input type="checkbox">
                             <label>Accept Terms of Service</label>
                         </div>
+                        <br/>
+                        <br/>
+                        <div class="ui form sf-margin left-20 top-05" style="margin-right: 2em;">
+                            <div class="field">
+                                <label>Default tab</label>
+                                <select class="ui fluid selection dropdown" data-op="dropdown-tab">
+                                    <option value="browse">Browse</option>
+                                    <option value="groups">Guilds</option>
+                                    <option value="players">Players</option>
+                                    <option value="files">Files</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="ten wide column">
                     <div class="ui segment">
-                        <h3 class="ui centered header">Actions</h3>
-                        <div class="ui info message">
-                            <div class="header">
-                                Soon-to-be available actions:
+                        <div class="ui grid">
+                            <div class="five wide column"></div>
+                            <div class="six wide column"><h3 class="ui centered header">Actions</h3></div>
+                            <div class="five wide column">
+                                <div class="ui small basic icon right floated buttons" style="margin-top: -0.5rem; margin-bottom: 0.5rem;">
+                                  <button class="ui button" data-op="remove" data-tooltip="Reset actions" data-position="bottom center"><i class="trash icon" style="color: orange;"></i></button>
+                                  <button class="ui button" data-op="reset" data-tooltip="Ignore changes" data-position="bottom center"><i class="black undo icon"></i></button>
+                                  <button class="ui button" data-op="save" data-tooltip="Save actions" data-position="bottom center"><i class="black save icon"></i></button>
+                                </div>
                             </div>
-                            <ul class="list">
-                                <li><b>Triggers:</b> Import, Load</li>
-                                <li><b>Actions:</b> Tag, Merge, Modify timestamp, Remove, Duplicate</li>
-                                <li><b>Modes:</b> Apply to player, Apply to file</li>
-                            </ul>
-                            <p><b>Example:</b></p>
-                            <ul class="list">
-                                <li>After load, remove all files coming from dungeon simulator that are older than 1 week</li>
-                                <li>After import, tag all files that are from W27</li>
-                            </ul>
+                        </div>
+                        <div class="ui form ta-form" style="height: 30em;">
+                            <div class="field">
+                                <div class="ta-wrapper">
+                                    <div class="ta-content"></div>
+                                    <textarea wrap="off" class="ta-area" spellcheck="false"></textarea>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -717,6 +737,7 @@
                 let param_temporary = params['temp'] == -1;
                 let param_profile = params['profile'];
                 let param_slot = params['slot'];
+                let param_template = params['template'];
 
                 if (param_temporary) {
                     $('.css-temporary').removeClass('css-hidden');
@@ -739,7 +760,26 @@
 
                 PopupController.open(LoaderPopup);
                 DatabaseManager.load(profile).then(function () {
-                    UI.initialize();
+                    UI.init({
+                        Settings: new SettingsView('view-settings'),
+                        SettingsFloat: new SettingsFloatView('modal-settings'),
+                        Files: new FilesView('view-files'),
+                        Players: new PlayersView('view-players'),
+                        Groups: new GroupsView('view-groups'),
+                        Browse: new BrowseView('view-browse'),
+                        PlayerHistory: new PlayerHistoryView('view-history'),
+                        PlayerDetail: new PlayerDetailFloatView('modal-playerdetail'),
+                        GroupDetail: new GroupDetailView('view-groupdetail'),
+                        ChangeLogs: new ChangeLogsView('view-changelog'),
+                        ConfirmDialog: new ConfirmDialogView('modal-confirm'),
+                        Templates: new TemplatesView('modal-templates'),
+                        OnlineTemplates: new OnlineTemplatesView('modal-onlinetemplates'),
+                        OnlineFiles: new OnlineFilesView('modal-onlinefile'),
+                        OnlineShareFile: new OnlineShareFileView('modal-share'),
+                        Profiles: new ProfilesView('view-profiles'),
+                        Options: new OptionsView('view-options')
+                    });
+
                     UI.register(UI.Players, 'show-players');
                     UI.register(UI.Groups, 'show-groups');
                     UI.register(UI.Browse, 'show-browse');
@@ -748,8 +788,19 @@
                     UI.register(UI.ChangeLogs, 'show-changelog');
                     UI.register(UI.Profiles, 'show-profile');
                     UI.register(UI.Options, 'show-options');
+
                     PopupController.close(LoaderPopup);
-                    UI.show(UI.Groups);
+
+                    UI.show({
+                        'players': UI.Players,
+                        'groups': UI.Groups,
+                        'browse': UI.Browse,
+                        'files': UI.Files
+                    }[SiteOptions.tab] || UI.Groups);
+
+                    if (param_template) {
+                        PopupController.open(SaveOnlineTemplatePopup, param_template);
+                    }
                 }).catch(function (e) {
                     PopupController.close(LoaderPopup);
                     PopupController.open(ErrorPopup, `<h4 class="ui white header text-center">Your browser does not support all features required by this page!</br>This issue can be also caused by use of private mode.</h4><br>${e.message}`);

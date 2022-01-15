@@ -1,6 +1,6 @@
 const DATABASE_PARAMS_V5 = [
     'sftools',
-    4,
+    6,
     {
         players: {
             key: ['identifier', 'timestamp'],
@@ -28,6 +28,9 @@ const DATABASE_PARAMS_V5 = [
         },
         trackers: {
             key: 'identifier'
+        },
+        metadata: {
+            key: 'timestamp'
         }
     },
     [
@@ -49,6 +52,37 @@ const DATABASE_PARAMS_V5 = [
             shouldApply: version => version < 4,
             apply: transaction => {
                 transaction.objectStore('players').createIndex('tag', 'tag');
+            }
+        },
+        {
+            shouldApply: version => version < 5,
+            apply: (transaction, database) => {
+                database.createObjectStore('metadata', { keyPath: 'timestamp' });
+            }
+        }
+    ],
+    [
+        {
+            shouldApply: version => version < 6,
+            apply: async (database) => {
+                const players = await database.all('players');
+                const groups = await database.all('groups');
+                const entries = [].concat(players, groups);
+
+                const metadata = _array_to_hash(await database.all('metadata'), entry => [ entry.timestamp, Object.assign(entry, { identifiers: [] }) ]);
+
+                for (const { timestamp: dirty_timestamp, identifier } of entries) {
+                    const timestamp = parseInt(dirty_timestamp);
+                    if (!metadata[timestamp]) {
+                        metadata[timestamp] = { timestamp, identifiers: [] };
+                    }
+
+                    metadata[timestamp].identifiers.push(identifier);
+                }
+
+                for (const data of Object.values(metadata)) {
+                    await database.set('metadata', data);
+                }
             }
         }
     ]
@@ -92,11 +126,13 @@ class IndexedDBWrapper {
         });
     }
 
-    constructor (name, version, stores, updaters) {
+    constructor (name, version, stores, updaters, dataUpdaters) {
         this.name = name;
         this.version = version;
+        this.oldVersion = version;
         this.stores = stores;
         this.updaters = updaters;
+        this.dataUpdaters = dataUpdaters;
         this.database = null;
     }
 
@@ -129,13 +165,24 @@ class IndexedDBWrapper {
                     Logger.log('STORAGE', 'Updating database to new version');
                     for (const updater of this.updaters) {
                         if (updater.shouldApply(event.oldVersion)) {
-                            updater.apply(event.currentTarget.transaction);
+                            updater.apply(event.currentTarget.transaction, database);
                         }
                     }
                 }
+
+                this.oldVersion = event.oldVersion;
             }
-        }).then(db => {
+        }).then(async (db) => {
             this.database = db;
+
+            if (this.version != this.oldVersion && Array.isArray(this.dataUpdaters)) {
+                for (const updater of this.dataUpdaters) {
+                    if (updater.shouldApply(this.oldVersion)) {
+                        await updater.apply(this);
+                    }
+                }
+            }
+
             return this;
         });
     }
@@ -246,17 +293,24 @@ class DatabaseUtils {
                 let migratedDatabase = await new IndexedDBWrapper(... DATABASE_PARAMS_V1).open();
                 let migratedFiles = await migratedDatabase.where('files');
 
-                for (let file of migratedFiles) {
+                for (const file of migratedFiles) {
                     const version = file.version;
                     const timestamp = file.timestamp;
+                    const players = file.players.map(p => MigrationUtils.migratePlayer(p, 'migration', timestamp, version));
+                    const groups = file.groups.map(g =>  MigrationUtils.migrateGroup(g, 'migration', timestamp));
 
-                    for (let player of file.players) {
-                        await database.set('players', MigrationUtils.migratePlayer(player, 'migration', timestamp, version));
+                    for (const player of players) {
+                        await database.set('players', player);
                     }
 
-                    for (let group of file.groups) {
-                        await database.set('groups', MigrationUtils.migrateGroup(group, 'migration', timestamp));
+                    for (const group of groups) {
+                        await database.set('groups', group);
                     }
+
+                    await database.set('metadata', {
+                        timestamp: parseInt(timestamp),
+                        identifiers: file.players.map(p => p.identifier).concat(file.groups.map(g => g.identifier))
+                    });
                 }
 
                 Logger.log('MIGRATE', `Migrating trackers`);
@@ -296,6 +350,10 @@ class DatabaseUtils {
             where (store, index, query) {
                 return Promise.resolve([]);
             }
+
+            close () {
+
+            }
         })();
     }
 
@@ -303,12 +361,12 @@ class DatabaseUtils {
         return slot ? `database_${slot}` : 'database';
     }
 
-    static filterArray (profile) {
-        return _dig(profile, 'primary', 'mode') === 'none' ? [] : undefined;
+    static filterArray (profile, type = 'primary') {
+        return _dig(profile, type, 'mode') === 'none' ? [] : undefined;
     }
 
-    static profileFilter (profile) {
-        let filter = profile.primary;
+    static profileFilter (profile, type = 'primary') {
+        let filter = profile[type];
         if (filter) {
             let { name, mode, value } = filter;
             if (value) {
@@ -375,15 +433,49 @@ class PlayaResponse {
     }
 };
 
+class ModelRegistry {
+    add (major, minor) {
+        if (!this[major]) {
+            this[major] = new Set();
+        }
+        this[major].add(minor);
+    }
+
+    remove (major, minor) {
+        if (this[major]) {
+            this[major].delete(minor);
+            if (!this[major].size) {
+                delete this[major];
+            }
+        }
+    }
+
+    array (major) {
+        if (this[major]) {
+            return Array.from(this[major]);
+        } else {
+            return [];
+        }
+    }
+
+    entries () {
+        return Object.entries(this);
+    }
+
+    keys () {
+        return Object.keys(this);
+    }
+}
+
 const DatabaseManager = new (class {
     constructor () {
         this._reset();
     }
 
     // INTERNAL: Reset all content
-    _reset () {
+    async _reset () {
         if (this.Database) {
-            this.Database.close();
+            await this.Database.close();
         }
 
         this.Database = null;
@@ -393,6 +485,7 @@ const DatabaseManager = new (class {
         // Models
         this.Players = {};
         this.Groups = {};
+        this.Metadata = {};
 
         this.TrackerData = {}; // Metadata
         this.TrackedPlayers = {}; // Tracker results
@@ -400,11 +493,13 @@ const DatabaseManager = new (class {
         this.TrackerConfigEntries = [];
 
         // Pools
-        this.Identifiers = Object.create(null);
-        this.Timestamps = Object.create(null);
+        this.Identifiers = new ModelRegistry();
+        this.Timestamps = new ModelRegistry();
         this.PlayerTimestamps = [];
         this.Prefixes = [];
         this.GroupNames = {};
+
+        this._metadataDelta = [];
     }
 
     // INTERNAL: Add player
@@ -443,16 +538,12 @@ const DatabaseManager = new (class {
 
     // INTERNAL: Add model
     _registerModel (type, identifier, timestamp, model) {
-        if (!this.Identifiers[identifier]) {
-            this.Identifiers[identifier] = new Set();
+        this.Identifiers.add(identifier, timestamp);
+        this.Timestamps.add(timestamp, identifier);
+
+        if (!this[type][identifier]) {
             this[type][identifier] = {};
         }
-        this.Identifiers[identifier].add(timestamp);
-
-        if (!this.Timestamps[timestamp]) {
-            this.Timestamps[timestamp] = new Set();
-        }
-        this.Timestamps[timestamp].add(identifier);
 
         this[type][identifier][timestamp] = model;
     }
@@ -472,18 +563,15 @@ const DatabaseManager = new (class {
                 if (!isNaN(ts)) {
                     const timestamp = Number(ts);
                     array.push([ timestamp, obj ]);
-                    if (this.Latest < timestamp) {
-                        this.Latest = timestamp;
-                    }
-                    if (this.LatestPlayer < timestamp) {
-                        this.LatestPlayer = timestamp;
-                    }
-                    if (player.LatestTimestamp < timestamp) {
-                        player.LatestTimestamp = timestamp;
-                    }
+
+                    this.Latest = Math.max(this.Latest, timestamp);
+                    this.LatestPlayer = Math.max(this.LatestPlayer, timestamp);
+                    player.LatestTimestamp = Math.max(player.LatestTimestamp, timestamp);
+
                     if (obj.Data.group) {
                         this.GroupNames[obj.Data.group] = obj.Data.groupname;
                     }
+
                     playerTimestamps.add(timestamp);
                 }
 
@@ -493,23 +581,22 @@ const DatabaseManager = new (class {
             _sort_des(player.List, le => le[0]);
             player.Latest = this._loadPlayer(player[player.LatestTimestamp]);
             player.Own = player.List.find(x => x[1].Own) != undefined;
-
-            if (this.Latest < player.LatestTimestamp) {
-                this.Latest = player.LatestTimestamp;
-            }
         }
 
         for (const [identifier, group] of Object.entries(this.Groups)) {
             group.LatestTimestamp = 0;
+            group.LatestDisplayTimestamp = 0;
             group.List = Object.entries(group).reduce((array, [ ts, obj ]) => {
                 if (!isNaN(ts)) {
                     const timestamp = Number(ts);
                     array.push([ timestamp, obj ]);
-                    if (this.Latest < timestamp) {
-                        this.Latest = timestamp;
-                    }
-                    if (group.LatestTimestamp < timestamp) {
-                        group.LatestTimestamp = timestamp;
+
+                    this.Latest = Math.max(this.Latest, timestamp);
+                    group.LatestTimestamp = Math.max(group.LatestTimestamp, timestamp);
+
+                    group.MembersPresent = this.Timestamps.array(timestamp).filter(id => _dig(this.Players, id, timestamp, 'Data', 'group') == identifier).length
+                    if (obj.MembersPresent || SiteOptions.groups_empty) {
+                        group.LatestDisplayTimestamp = Math.max(group.LatestDisplayTimestamp, timestamp);
                     }
                 }
 
@@ -519,14 +606,10 @@ const DatabaseManager = new (class {
             _sort_des(group.List, le => le[0]);
             group.Latest = group[group.LatestTimestamp];
             group.Own = group.List.find(x => x[1].Own) != undefined;
-
-            if (this.Latest < group.LatestTimestamp) {
-                this.Latest = group.LatestTimestamp;
-            }
         }
 
         this.PlayerTimestamps = Array.from(playerTimestamps);
-        this.Prefixes = Array.from(new Set(Object.keys(this.Identifiers).filter(id => this._isPlayer(id)).map(identifier => this.Players[identifier].Latest.Data.prefix)));
+        this.Prefixes = _uniq(this.Identifiers.keys().filter(id => this._isPlayer(id)).map(identifier => this.Players[identifier].Latest.Data.prefix));
     }
 
     // INTERNAL: Load player from proxy
@@ -585,7 +668,10 @@ const DatabaseManager = new (class {
 
     // Load database
     async load (profile = DEFAULT_PROFILE) {
-        this._reset();
+        await this._reset();
+
+        Actions.init();
+
         this.Profile = profile;
 
         if (profile.temporary) {
@@ -600,17 +686,42 @@ const DatabaseManager = new (class {
             });
         } else {
             const attemptMigration = await DatabaseUtils.migrateable(profile.slot);
-            return DatabaseUtils.createSession(attemptMigration).then(async database => {
+            return new Promise(async (resolve, reject) => {
+                this.Database = await DatabaseUtils.createSession(attemptMigration);
+                if (!this.Database) {
+                    reject({ message: 'Database was not opened correctly' });
+                }
+
                 const beginTimestamp = Date.now();
 
-                this.Database = database;
-
                 if (!profile.only_players) {
-                    let groups = await this.Database.all('groups');
-                    for (const group of groups) {
-                        this._addGroup(group);
+                    const groupFilter = DatabaseUtils.profileFilter(profile, 'primary_g');
+                    const groups = DatabaseUtils.filterArray(profile, 'primary_g') || (_not_empty(groupFilter) ? (
+                        await this.Database.where('groups', ... groupFilter)
+                    ) : (
+                        await this.Database.all('groups')
+                    ));
+
+                    if (profile.secondary_g) {
+                        const filter = new Expression(profile.secondary_g);
+                        for (const group of groups) {
+                            if (!this._isHidden(group, false) || SiteOptions.hidden) {
+                                ExpressionCache.reset();
+                                if (new ExpressionScope().addSelf(group).eval(filter)) {
+                                    this._addGroup(group);
+                                }
+                            }
+                        }
+                    } else {
+                        for (const group of groups) {
+                            if (!this._isHidden(group, false) || SiteOptions.hidden) {
+                                this._addGroup(group);
+                            }
+                        }
                     }
                 }
+
+                this.Metadata = _array_to_hash(await this.Database.all('metadata'), md => [ md.timestamp, md ]);
 
                 const playerFilter = DatabaseUtils.profileFilter(profile);
                 let players = DatabaseUtils.filterArray(profile) || (_not_empty(playerFilter) ? (
@@ -622,7 +733,7 @@ const DatabaseManager = new (class {
                 if (profile.secondary) {
                     const filter = new Expression(profile.secondary);
                     for (const player of players) {
-                        if (!player.hidden || SiteOptions.hidden) {
+                        if (!this._isHidden(player) || SiteOptions.hidden) {
                             ExpressionCache.reset();
                             if (new ExpressionScope().addSelf(player).eval(filter)) {
                                 this._addPlayer(player);
@@ -631,7 +742,7 @@ const DatabaseManager = new (class {
                     }
                 } else {
                     for (const player of players) {
-                        if (!player.hidden || SiteOptions.hidden) {
+                        if (!this._isHidden(player) || SiteOptions.hidden) {
                             this._addPlayer(player);
                         }
                     }
@@ -644,9 +755,6 @@ const DatabaseManager = new (class {
                     }
                 }
 
-                if (attemptMigration) {
-                    await this._groupsCleanup();
-                }
                 this._updateLists();
                 await this.refreshTrackers();
 
@@ -654,9 +762,54 @@ const DatabaseManager = new (class {
 
                 Logger.log('PERFLOG', `Load done in ${Date.now() - beginTimestamp} ms`);
 
-                await Actions.apply('load');
+                resolve();
             });
         }
+    }
+
+    _isHidden (obj, allowDirect = true) {
+        return (allowDirect && _dig(obj, 'hidden')) || _dig(this.Metadata, obj.timestamp, 'hidden');
+    }
+
+    async _markHidden (timestamp, hidden) {
+        const metadata = Object.assign(this.Metadata[timestamp], { timestamp: parseInt(timestamp), hidden });
+
+        this.Metadata[timestamp] = metadata;
+        await this.Database.set('metadata', metadata);
+    }
+
+    _addMetadata (identifier, dirty_timestamp) {
+        const timestamp = parseInt(dirty_timestamp);
+
+        if (!this.Metadata[timestamp]) {
+            this.Metadata[timestamp] = { timestamp, identifiers: [] }
+        }
+
+        _push_unless_includes(this.Metadata[timestamp].identifiers, identifier);
+        this._metadataDelta.push(timestamp);
+    }
+
+    _removeMetadata (identifier, dirty_timestamp) {
+        const timestamp = parseInt(dirty_timestamp);
+
+        if (this.Metadata[timestamp]) {
+            _remove(this.Metadata[timestamp].identifiers, identifier);
+            this._metadataDelta.push(timestamp);
+        }
+    }
+
+    async _updateMetadata () {
+        for (const timestamp of _uniq(this._metadataDelta)) {
+            if (_empty(this.Metadata[timestamp].identifiers)) {
+                delete this.Metadata[timestamp];
+
+                await this.Database.remove('metadata', timestamp);
+            } else {
+                await this.Database.set('metadata', this.Metadata[timestamp]);
+            }
+        }
+
+        this._metadataDelta = [];
     }
 
     // Check if player exists
@@ -679,6 +832,10 @@ const DatabaseManager = new (class {
         }
     }
 
+    isHidden (id, ts) {
+        return _dig(this.Players, id, ts, 'Data', 'hidden');
+    }
+
     // Get group
     getGroup (identifier, timestamp) {
         if (timestamp && this.Groups[identifier]) {
@@ -696,40 +853,28 @@ const DatabaseManager = new (class {
         return new Promise(async (resolve, reject) => {
             for (let { identifier, timestamp, group } of players) {
                 await this.Database.remove('players', [identifier, parseInt(timestamp)]);
-                await this._unload(identifier, timestamp);
+                this._removeMetadata(identifier, timestamp);
+                this._unload(identifier, timestamp);
             }
 
-            await this._groupsCleanup();
+            await this._updateMetadata();
             this._updateLists();
             resolve();
         });
     }
 
-    async _unload (identifier, timestamp) {
-        return new Promise(async (resolve, reject) => {
-            await this._removeFromPool(identifier, timestamp);
+    _unload (identifier, timestamp) {
+        this._removeFromPool(identifier, timestamp);
 
-            if (this._isPlayer(identifier)) {
-                delete this.Players[identifier][timestamp];
-                if (_empty(this.Identifiers[identifier])) {
-                    delete this.Players[identifier];
-                }
-            } else {
-                delete this.Groups[identifier][timestamp];
-                if (_empty(this.Identifiers[identifier])) {
-                    delete this.Groups[identifier];
-                }
+        if (this._isPlayer(identifier)) {
+            delete this.Players[identifier][timestamp];
+            if (_empty(this.Identifiers[identifier])) {
+                delete this.Players[identifier];
             }
-
-            resolve();
-        });
-    }
-
-    async _groupsCleanup () {
-        for (const identifier of Object.keys(this.Groups)) {
-            for (const timestamp of this.Identifiers[identifier]) {
-                const group = this.getGroup(identifier, timestamp);
-                group.MembersPresent = Array.from(this.Timestamps[timestamp]).filter(id => _dig(this.Players, id, timestamp, 'Data', 'group') == identifier).length;
+        } else {
+            delete this.Groups[identifier][timestamp];
+            if (_empty(this.Identifiers[identifier])) {
+                delete this.Groups[identifier];
             }
         }
     }
@@ -741,11 +886,35 @@ const DatabaseManager = new (class {
                 for (const identifier of this.Timestamps[timestamp]) {
                     let isPlayer = this._isPlayer(identifier);
                     await this.Database.remove(isPlayer ? 'players' : 'groups', [identifier, parseInt(timestamp)]);
-                    await this._unload(identifier, timestamp);
-                }
 
-                delete this.Timestamps[timestamp];
+                    this._removeMetadata(identifier, timestamp);
+                    this._unload(identifier, timestamp);
+                }
             }
+
+            await this._updateMetadata();
+            this._updateLists();
+            resolve();
+        });
+    }
+
+    purge () {
+        return new Promise(async (resolve, reject) => {
+            for (const timestamp of Object.keys(this.Timestamps).filter(ts => this.Timestamps[ts])) {
+                for (const identifier of this.Timestamps[timestamp]) {
+                    let isPlayer = this._isPlayer(identifier);
+                    await this.Database.remove(isPlayer ? 'players' : 'groups', [identifier, parseInt(timestamp)]);
+
+                    this._removeMetadata(identifier, timestamp);
+                }
+            }
+
+            await this._updateMetadata();
+
+            this.Players = {};
+            this.Groups = {};
+            this.Timestamps = new ModelRegistry();
+            this.Identifiers = new ModelRegistry();
 
             this._updateLists();
             resolve();
@@ -753,17 +922,27 @@ const DatabaseManager = new (class {
     }
 
     _removeFromPool (identifier, timestamp) {
-        return new Promise((resolve, reject) => {
-            this.Timestamps[timestamp].delete(identifier);
-            if (this.Timestamps[timestamp].size == 0) {
-                delete this.Timestamps[timestamp];
+        this.Timestamps.remove(timestamp, identifier);
+        this.Identifiers.remove(identifier, timestamp);
+    }
+
+    migrateHiddenFiles () {
+        return new Promise(async (resolve, reject) => {
+            for (const [timestamp, identifiers] of this.Timestamps.entries()) {
+                const players = Array.from(identifiers).filter(identifier => this._isPlayer(identifier));
+                if (_all_true(players, id => _dig(this.Players, id, timestamp, 'Data', 'hidden'))) {
+                    for (const id of players) {
+                        const player = this.Players[id][timestamp].Data;
+                        delete player['hidden'];
+
+                        await this.Database.set('players', player);
+                    }
+
+                    await this._markHidden(timestamp, true);
+                }
             }
 
-            this.Identifiers[identifier].delete(parseInt(timestamp));
-            if (this.Identifiers[identifier].size == 0) {
-                delete this.Identifiers[identifier];
-            }
-
+            this._updateLists();
             resolve();
         });
     }
@@ -777,12 +956,13 @@ const DatabaseManager = new (class {
                 for (const timestamp of this.Identifiers[identifier]) {
                     let isPlayer = this._isPlayer(identifier);
                     await this.Database.remove(isPlayer ? 'players' : 'groups', [identifier, parseInt(timestamp)]);
-                    await this._removeFromPool(identifier, timestamp);
-                }
 
-                delete this.Identifiers[identifier];
+                    this._removeMetadata(identifier, timestamp);
+                    this._removeFromPool(identifier, timestamp);
+                }
             }
 
+            await this._updateMetadata();
             this._updateLists();
             resolve();
         });
@@ -876,13 +1056,12 @@ const DatabaseManager = new (class {
         return new Promise(async (resolve, reject) => {
             for (const player of players) {
                 if ((player.hidden = !player.hidden) && !SiteOptions.hidden) {
-                    await this._unload(player.identifier, player.timestamp);
+                    this._unload(player.identifier, player.timestamp);
                 }
 
                 await this.Database.set('players', player);
             }
 
-            await this._groupsCleanup();
             this._updateLists();
             resolve();
         });
@@ -891,23 +1070,19 @@ const DatabaseManager = new (class {
     hideTimestamps (... timestamps) {
         return new Promise(async (resolve, reject) => {
             if (_not_empty(timestamps)) {
-                const sample = timestamps[0];
-                const shouldHide = _any_true(this.Timestamps[sample], id => this._isPlayer(id) && !_dig(this.Players, id, sample, 'Data', 'hidden'));
+                const shouldHide = !_all_true(timestamps, timestamp => _dig(this.Metadata, timestamp, 'hidden'));
+                for (const timestamp of timestamps) {
+                    await this._markHidden(timestamp, shouldHide);
+                }
 
-                for (const ts of timestamps) {
-                    for (const id of this.Timestamps[ts]) {
-                        if (this._isPlayer(id)) {
-                            const obj = _dig(this.Players, id, ts, 'Data');
-                            if ((obj.hidden = shouldHide) && !SiteOptions.hidden) {
-                                await this._unload(id, ts);
-                            }
-
-                            await this.Database.set('players', obj);
+                if (!SiteOptions.hidden) {
+                    for (const timestamp of timestamps) {
+                        for (const identifier of this.Timestamps[timestamp]) {
+                            this._unload(identifier, timestamp);
                         }
                     }
                 }
 
-                await this._groupsCleanup();
                 this._updateLists();
             }
 
@@ -1042,20 +1217,26 @@ const DatabaseManager = new (class {
 
         for (let group of migratedGroups) {
             this._addGroup(group);
+            this._addMetadata(group.identifier, group.timestamp);
+
             await this.Database.set('groups', group);
         }
 
         for (let player of migratedPlayers) {
             this._addPlayer(player);
+            this._addMetadata(player.identifier, player.timestamp);
+
             await this.Database.set('players', player);
         }
+
+        await this._updateMetadata();
 
         this._updateLists();
         for (const { identifier, timestamp } of migratedPlayers) {
             await this._track(identifier, timestamp);
         }
 
-        await Actions.apply('import', migratedPlayers, migratedGroups);
+        await Actions.apply(migratedPlayers, migratedGroups, origin);
     }
 
     getTracker (identifier, tracker) {
@@ -1268,6 +1449,7 @@ const DatabaseManager = new (class {
                         data.scrapbook_legendary = _try(r.legendaries, 'string');
                         data.witch = _try(r.witch, 'numbers');
                         data.idle = _try(r.idle, 'numbers');
+                        data.calendar = _try(r.calenderinfo, 'numbers');
 
                         // Post-process
                         if (data.save[435]) {
