@@ -889,14 +889,16 @@ class FightSimulator {
     }
 
     forwardToBersekerAttack () {
-        if (this.b.Player.Class == BERSERKER && this.a.AttackFirst && getRandom(50)) {
-            this.rage += 1; // Evade normal attack
+        if (this.b.Player.Class == BERSERKER && getRandom(50)) {
+            if (this.a.AttackFirst) {
+                this.rage += 1; // Evade normal attack
 
-            if (this.a.Player.Class == ASSASSIN) {
-                this.rage += 1; // Evade second  attacks
-            } else if (this.a.Player.Class == BERSERKER) {
-                while (getRandom(50)) {
-                    this.rage += 2; // Evade all chained attacks
+                if (this.a.Player.Class == ASSASSIN) {
+                    this.rage += 1; // Evade second  attacks
+                } else if (this.a.Player.Class == BERSERKER) {
+                    while (getRandom(50)) {
+                        this.rage += 2; // Evade all chained attacks
+                    }
                 }
             }
 
