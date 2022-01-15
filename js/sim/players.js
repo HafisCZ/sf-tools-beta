@@ -889,17 +889,21 @@ class FightSimulator {
     }
 
     forwardToBersekerAttack () {
+        // Thanks to rafa97sam for testing and coding this part that broke me
         if (this.b.Player.Class == BERSERKER && getRandom(50)) {
-            if (this.a.AttackFirst) {
-                this.turn += 1; // Evade normal attack
+            let turnIncrease = 1;
 
-                if (this.a.Player.Class == ASSASSIN) {
-                    this.turn += 1; // Evade second  attacks
-                } else if (this.a.Player.Class == BERSERKER) {
-                    while (getRandom(50)) {
-                        this.turn += 2; // Evade all chained attacks
-                    }
+            if (this.a.Player.Class == ASSASSIN) {
+                turnIncrease += 1;
+            } else if (this.a.Player.Class == BERSERKER) {
+                while (getRandom(50)) {
+                    turnIncrease += 2;
+                    [this.a, this.b] = [this.b, this.a];
                 }
+            }
+
+            if (this.a.AttackFirst) {
+                this.turn += turnIncrease;
             }
 
             [this.a, this.b] = [this.b, this.a];
