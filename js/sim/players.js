@@ -902,9 +902,7 @@ class FightSimulator {
                 }
             }
 
-            if (this.a.AttackFirst) {
-                this.turn += turnIncrease;
-            }
+            this.turn += turnIncrease;
 
             [this.a, this.b] = [this.b, this.a];
         }
