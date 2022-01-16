@@ -1113,8 +1113,6 @@ class FightSimulator {
             }
 
             [this.a, this.b] = [this.b, this.a];
-
-            if (this.turn > 100) break;
         }
 
         // Winner
