@@ -893,9 +893,7 @@ class FightSimulator {
         if (this.b.Player.Class == BERSERKER && getRandom(50)) {
             let turnIncrease = 1;
 
-            if (this.a.Player.Class == ASSASSIN) {
-                turnIncrease += 1;
-            } else if (this.a.Player.Class == BERSERKER) {
+            if (this.a.Player.Class == BERSERKER) {
                 while (getRandom(50)) {
                     turnIncrease += 1;
                     [this.a, this.b] = [this.b, this.a];
