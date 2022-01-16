@@ -897,7 +897,7 @@ class FightSimulator {
                 turnIncrease += 1;
             } else if (this.a.Player.Class == BERSERKER) {
                 while (getRandom(50)) {
-                    turnIncrease += 2;
+                    turnIncrease += 1;
                     [this.a, this.b] = [this.b, this.a];
                 }
             }
