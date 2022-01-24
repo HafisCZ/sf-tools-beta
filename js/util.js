@@ -169,7 +169,7 @@ function decodeScrapbook (data) {
 
 function createWebWorker (location) {
     if (document.location.protocol == 'file:') {
-        return new Worker(URL.createObjectURL(new Blob([ $.ajax({ method: 'GET', url: 'https://beta.mar21.eu/' + location, dataType: 'text', async: false }).responseText ], { type: 'text/javascript' })));
+        return new Worker(URL.createObjectURL(new Blob([ $.ajax({ method: 'GET', url: 'https://sftools.mar21.eu/' + location, dataType: 'text', async: false }).responseText ], { type: 'text/javascript' })));
     } else {
         return new Worker(location);
     }

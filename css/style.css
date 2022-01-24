@@ -9,6 +9,28 @@ body {
     overflow-x: auto;
 }
 
+div.item.item-member {
+    position: relative;
+}
+
+div.item.item-friend {
+    position: relative;
+}
+
+div.item.item-member::before {
+    content: "\f2bd";
+    font-family: Icons;
+    position: absolute;
+    right: 0.75em;
+}
+
+div.item.item-friend::before {
+    content: "\f164";
+    font-family: Icons;
+    position: absolute;
+    right: 0.75em;
+}
+
 tr[data-tr-timestamp], tr[data-tr-mark] {
     user-select: none;
     -ms-user-select: none;
@@ -608,6 +630,7 @@ h3.file-selected {
     pointer-events: none;
     color: black;
     width: 1000%;
+    font-size: 1em !important;
 }
 
 .ta-area {

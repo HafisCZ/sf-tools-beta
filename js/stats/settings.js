@@ -1424,28 +1424,32 @@ class Settings {
                     loop.push(line);
                 }
 
-                for (let block of variableValues) {
-                    if (!Array.isArray(block)) {
-                        block = [ block ];
-                    }
-
-                    let varArray = variableNames.map((key, index) => `var ${ key } ${ block[index] }`);
-                    let replacementArray = variableNames.map((key, index) => {
-                        return {
-                            regexp: new RegExp(`__${ key }__`, 'g'),
-                            value: block[index]
-                        }
-                    });
-
-                    for (let loopLine of loop) {
-                        for (let { regexp, value } of replacementArray) {
-                            loopLine = loopLine.replace(regexp, value)
+                if (endsRequired != 0) {
+                    output.push(... loop);
+                } else {
+                    for (let block of variableValues) {
+                        if (!Array.isArray(block)) {
+                            block = [ block ];
                         }
 
-                        output.push(loopLine);
+                        let varArray = variableNames.map((key, index) => `var ${ key } ${ block[index] }`);
+                        let replacementArray = variableNames.map((key, index) => {
+                            return {
+                                regexp: new RegExp(`__${ key }__`, 'g'),
+                                value: block[index]
+                            }
+                        });
 
-                        if (/^(?:\w+(?:\,\w+)*:|)(?:header|embed|show|category)(?: .+)?$/.test(loopLine)) {
-                            output.push(... varArray);
+                        for (let loopLine of loop) {
+                            for (let { regexp, value } of replacementArray) {
+                                loopLine = loopLine.replace(regexp, value)
+                            }
+
+                            output.push(loopLine);
+
+                            if (/^(?:\w+(?:\,\w+)*:|)(?:header|embed|show|category)(?: .+)?$/.test(loopLine)) {
+                                output.push(... varArray);
+                            }
                         }
                     }
                 }
@@ -2810,6 +2814,14 @@ const SettingsManager = new (class {
         if (!this.settings) {
             // Initialize if needed
             this.settings = Preferences.get('settings', { });
+
+            if (typeof this.settings === 'string') {
+                Preferences.set('settingsStringRaw', this.settings);
+
+                this.settings = {};
+                Preferences.set('settings', {});
+            }
+
             this.keys = Object.keys(this.settings);
 
             /*
