@@ -56,6 +56,10 @@
                 margin-left: 1em;
             }
 
+            .form.white label {
+                color: white !important;
+            }
+
             .bnone {
                 border: 1px solid transparent;
             }
@@ -141,6 +145,12 @@
                 bottom: 1em;
             }
 
+            .footer-right {
+                position: fixed;
+                right: 1em;
+                bottom: 1em;
+            }
+
             .statistics-module {
                 position: absolute;
                 left: 2em;
@@ -150,7 +160,8 @@
             }
 
             body {
-                overflow-y: hidden !important;
+                overflow-y: auto !important;
+                margin-bottom: 6em;
             }
 
             .text .boss-image {
@@ -231,10 +242,13 @@
             }
         </style>
     </head>
-    <body class="margin-none-bottom">
-        <div class="ui fixed borderless huge menu css-menu">
+    <body>
+        <div class="ui fixed borderless huge menu css-menu" style="z-index: 3;">
             <div class="header item"><a class="css-a-blank" href="index.html">SFTools</a></div>
             <a class="item" href="https://github.com/HafisCZ/sf-tools/wiki/%5BWIP%5D-Tools-Overview#dungeon-simulator" target="_blank"><i class="ui icon book"></i> Wiki - How to use</a>
+            <div class="right menu" id="show-right-menu">
+                <a class="item" id="cheat-menu-toggle"><i class="ui angle double left icon"></i></a>
+            </div>
         </div>
 
         <div class="footer">
@@ -254,7 +268,7 @@
         </div>
 
         <div class="ui main container">
-            <div class="ui two columns grid">
+            <div class="ui two columns stackable grid">
                 <!-- Player edit field -->
                 <div class="column">
                     <div class="ui form" id="sim-editor">
@@ -274,6 +288,13 @@
                                 <div class="field">
                                     <label>Mask</label>
                                     <div class="ui selection compact dropdown" data-path="Mask">
+                                        <div class="text"></div>
+                                        <i class="dropdown icon"></i>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label>Instrument</label>
+                                    <div class="ui selection compact dropdown" data-path="Instrument">
                                         <div class="text"></div>
                                         <i class="dropdown icon"></i>
                                     </div>
@@ -516,17 +537,98 @@
         </div>
 
         <div id="results-modal" class="ui mini modal">
-          <div class="header">Results</div>
-          <div style="padding-left: 1em; padding-right: 1em; border-bottom: 1px solid rgba(34,36,38,.15)">
-              <canvas id="list-winchart" style="width: 100%;"></canvas>
-          </div>
-          <div class="content" style="max-height: 70vh; overflow-y: auto;">
+            <div class="header">Results</div>
+            <div style="padding-left: 1em; padding-right: 1em; border-bottom: 1px solid rgba(34,36,38,.15)">
+                <canvas id="list-winchart" style="width: 100%;"></canvas>
+            </div>
+            <div class="content" style="max-height: 70vh; overflow-y: auto;">
 
-          </div>
+            </div>
+        </div>
+
+        <div id="cheat-menu" style="position: fixed; right: 0; top: 0; height: 100vh; width: 300px; background: #313131; z-index: 2; display: none; padding-top: 4.5em;">
+            <h3 class="ui header white centered">Cheat Menu</h3>
+            <p style="font-size: 85%; color: white; text-align: center;">Select which cheats to apply and poll your character</p>
+            <div class="ui small white form" style="padding-left: 15px; padding-top: 1em; border-top: 1px white solid;">
+                <div class="field">
+                    <div class="ui checkbox">
+                        <input type="checkbox" class="hidden" id="cheats-enabled">
+                        <label>Enable cheats</label>
+                    </div>
+                </div>
+                <div class="field"><b>General</b></div>
+                <div class="field">
+                    <div class="ui checkbox">
+                        <input type="checkbox" class="hidden" data-cheat="enchantments">
+                        <label>All enchantments</label>
+                    </div>
+                </div>
+                <div class="field">
+                    <div class="ui checkbox">
+                        <input type="checkbox" class="hidden" data-cheat="runes">
+                        <label>Maximum runes</label>
+                    </div>
+                </div>
+                <div class="field">
+                    <div class="ui checkbox">
+                        <input type="checkbox" class="hidden" data-cheat="pets">
+                        <label>Maximum pets</label>
+                    </div>
+                </div>
+                <div class="field"><b>Potions</b> (up to 3)</div>
+                <div class="two fields">
+                    <div class="field">
+                        <div class="ui checkbox">
+                            <input type="checkbox" class="hidden" data-cheat="strength">
+                            <label>Strength</label>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <div class="ui checkbox">
+                            <input type="checkbox" class="hidden" data-cheat="dexterity">
+                            <label>Dexterity</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="two fields">
+                    <div class="field">
+                        <div class="ui checkbox">
+                            <input type="checkbox" class="hidden" data-cheat="intelligence">
+                            <label>Intelligence</label>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <div class="ui checkbox">
+                            <input type="checkbox" class="hidden" data-cheat="constitution">
+                            <label>Constitution</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="two fields">
+                    <div class="field">
+                        <div class="ui checkbox">
+                            <input type="checkbox" class="hidden" data-cheat="luck">
+                            <label>Luck</label>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <div class="ui checkbox">
+                            <input type="checkbox" class="hidden" data-cheat="life">
+                            <label>Eternal Life</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <script type="text/javascript">
             window.addEventListener('load', function () {
+                $('#cheat-menu-toggle').click(() => {
+                    $('#cheat-menu').transition('fade left');
+                    $('#cheat-menu-toggle .icon').toggleClass('left right');
+                });
+                $('#cheat-menu .checkbox').checkbox('set unchecked');
+
                 if (new Date().getMonth() == 3 && new Date().getDate() == 1) {
                     let randomString = orig => {
                         let str = ''
@@ -575,6 +677,7 @@
                             name: new Field('[data-path="Name"]', ''),
                             class: new Field('[data-path="Class"]', '1'),
                             mask: new Field('[data-path="Mask"]', '0'),
+                            instrument: new Field('[data-path="Instrument"]', '0'),
                             level: new Field('[data-path="Level"]', '', Field.isPlayerLevel),
                             armor: new Field('[data-path="Armor"]', '', Field.isNumber),
 
@@ -627,6 +730,7 @@
 
                             this.fields['shield'].show(value == 1);
                             this.fields['mask'].show(value == 8);
+                            this.fields['instrument'].show(value == 9);
                         }).dropdown('set selected', '1');
 
                         this.fields['mask'].$object.dropdown({
@@ -645,6 +749,16 @@
                                     value: 2
                                 }
                             ]
+                        }).dropdown('set selected', '0');
+
+                        this.fields['instrument'].$object.dropdown({
+                            preserveHTML: true,
+                            values: INSTRUMENT_TYPES.map((name, index) => {
+                                return {
+                                    name: `<img class="ui centered image class-picture" src="res/instrument${index}.png"><span>${name}</span>`,
+                                    value: index
+                                }
+                            })
                         }).dropdown('set selected', '0');
 
                         this.fields['potion_life'].$object.dropdown({
@@ -849,13 +963,15 @@
 
                 function getBossData (data, name = '') {
                     return {
-                        ArmorAuto: data.armor ? 0 : (dungeon.auto_armor_multiplier || 1),
+                        ForceArmor: data.armor ? 0 : (dungeon.auto_armor_multiplier || 1),
                         Armor: data.armor,
                         Class: data.class,
                         Mask: 0,
+                        Instrument: 0,
                         Name: name,
                         Level: data.level,
-                        AutoHealth: data.health,
+                        ForceHealth: data.health,
+                        NoBaseDamage: true,
                         Identifier: 999,
                         Strength: { Total: data.str },
                         Dexterity: { Total: data.dex },
@@ -1087,6 +1203,16 @@
                     }
                 }
 
+                let cheatsEnabled = false;
+                let cheatsWasEnabled = false;
+
+                $('#cheats-enabled').closest('.checkbox').change((el) => {
+                    cheatsEnabled = el.target.checked;
+                    if (cheatsEnabled) {
+                        cheatsWasEnabled = true;
+                    }
+                });
+
                 $('#load-stats').click(() => {
                     toggleAll(true);
                     DatabaseManager.load(SELF_PROFILE).then(function () {
@@ -1104,7 +1230,20 @@
                                 </div>
                                 `).click(() => {
                                     dungeon = DUNGEON_DATA[dungeon_current];
-                                    boss = boss_current
+                                    boss = boss_current;
+
+                                    if (cheatsWasEnabled) {
+                                        DatabaseManager._addPlayer(player.Data);
+                                        player = DatabaseManager.getPlayer(player.Identifier, player.Timestamp);
+
+                                        cheatsWasEnabled = false;
+                                    }
+
+                                    if (cheatsEnabled) {
+                                        applyCheats(player);
+
+                                        cheatsWasEnabled = true;
+                                    }
 
                                     showData(player.toSimulatorShadowModel());
 
@@ -1249,21 +1388,17 @@
                         let hp_d = 1.22;
 
                         playerInstances[1].NoSkip = true;
-                        playerInstances[1].AutoHealth = Math.trunc(Math.floor(bert.Constitution.Total * 5 * (bert.Level + 1) * hp_a) * hp_b * hp_c * hp_d);
+                        playerInstances[1].ForceHealth = Math.trunc(Math.floor(bert.Constitution.Total * 5 * (bert.Level + 1) * hp_a) * hp_b * hp_c * hp_d);
                     }
 
                     if (playerInstances[0].Class == 1 && playerInstances[0].BlockChance == '0') {
                         playerInstances[0].NoSkip = true;
                     }
 
-                    for (let i = 0; i < 4; i++) {
-                        playerInstances[i].IsRealPlayer = true;
-                    }
-
                     return dungeon.shadow ? [ ... playerInstances.slice(1, 4), playerInstances[0] ] : [ playerInstances[0] ];
                 }
 
-                $('#sim-run-all').click(function () {
+                $('#sim-run-all').click(async function () {
                     if (availableBosses && availableBosses.length > 0 && EditorController.valid()) {
                         toggleAll(true);
 
@@ -1276,7 +1411,7 @@
                         let pendingInstances = [];
 
                         for (let [index, { boss, dungeon, name }] of Object.entries(availableBosses)) {
-                            let worker = createWebWorker('js/sim/dungeons.js');
+                            let worker = await createSimulatorWorker('dungeons');
 
                             worker.addEventListener('message', (message) => {
                                 if (message.data.command == 'finished') {
@@ -1315,7 +1450,7 @@
                     }
                 });
 
-                $('#sim-run').click(function () {
+                $('#sim-run').click(async function () {
                     if (boss && EditorController.valid()) {
                         toggleAll(true);
 
@@ -1333,7 +1468,7 @@
                         }
 
                         for (let i = 0; i < threads; i++) {
-                            let worker = createWebWorker('js/sim/dungeons.js');
+                            let worker = await createSimulatorWorker('dungeons');
 
                             worker.addEventListener('message', (message) => {
                                 if (message.data.command == 'finished') {
@@ -1388,6 +1523,101 @@
                     graph.data.datasets[0].data = healths.map((h, i) => { return { x: i, y: h * 100 }; });
                     graph.data.labels = healths.map((a, b) => b);
                     graph.update(0);
+                }
+
+                function applyCheats (player) {
+                    let cheats = _array_to_hash($('[data-cheat]').toArray(), el => [el.dataset.cheat, el.checked]);
+
+                    if (cheats.pets) {
+                        player.Pets = {
+                            Water: 40,
+                            Light: 40,
+                            Earth: 40,
+                            Shadow: 40,
+                            Fire: 40
+                        }
+                    }
+
+                    if (cheats.enchantments) {
+                        for (let item of Object.values(player.Items)) {
+                            item.HasEnchantment = true;
+                        }
+
+                        if (player.Companions) {
+                            for (let kind of ['Bert', 'Mark', 'Kunigunde']) {
+                                let companion = player.Companions[kind];
+
+                                for (let item of Object.values(companion.Items)) {
+                                    item.HasEnchantment = true;
+                                }
+                            }
+                        }
+                    }
+
+                    let potions = [];
+                    if (cheats.strength) potions.push(1);
+                    if (cheats.dexterity) potions.push(2);
+                    if (cheats.intelligence) potions.push(3);
+                    if (cheats.constitution) potions.push(4);
+                    if (cheats.luck) potions.push(5);
+                    if (cheats.life) potions.push(6);
+
+                    // Set potions to player
+                    if (potions.length) {
+                        player.Potions = potions.slice(0, 3).map(type => {
+                            return {
+                                Type: type,
+                                Size: 25
+                            }
+                        });
+                    }
+
+                    if (potions.length || cheats.pets) {
+                        for (let type of ['Strength', 'Dexterity', 'Intelligence', 'Constitution', 'Luck']) {
+                            player[type].Bonus = undefined;
+                        }
+
+                        if (player.Potions.some(p => p.Type == 6 && p.Size > 0)) {
+                            player.Potions.Life = 25;
+                        }
+
+                        player.evaluateCommon();
+
+                        if (player.Companions) {
+                            for (let kind of ['Bert', 'Mark', 'Kunigunde']) {
+                                let companion = player.Companions[kind];
+
+                                for (let type of ['Strength', 'Dexterity', 'Intelligence', 'Constitution', 'Luck']) {
+                                    companion[type].Bonus = undefined;
+                                }
+
+                                companion.Potions = player.Potions;
+                                companion.evaluateCompanionCommon(player);
+                            }
+                        }
+                    }
+
+                    if (cheats.runes) {
+                        player.Runes.Health = 15;
+                        player.Runes.ResistanceFire = 75;
+                        player.Runes.ResistanceCold = 75;
+                        player.Runes.ResistanceLightning = 75;
+                        player.Items.Wpn1.Attributes[2] = 60;
+                        player.Items.Wpn2.Attributes[2] = 60;
+
+                        if (player.Companions) {
+                            for (let kind of ['Bert', 'Mark', 'Kunigunde']) {
+                                let companion = player.Companions[kind];
+
+                                companion.Runes.Health = 15;
+                                companion.Runes.ResistanceFire = 75;
+                                companion.Runes.ResistanceCold = 75;
+                                companion.Runes.ResistanceLightning = 75;
+                                companion.Items.Wpn1.Attributes[2] = 60;
+                                companion.Items.Wpn2.Attributes[2] = 60;
+                            }
+                        }
+                    }
                 }
             });
         </script>

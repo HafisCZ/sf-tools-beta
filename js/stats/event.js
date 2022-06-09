@@ -930,8 +930,8 @@ class BrowseView extends View {
 
         // Copy 2
         this.$parent.find('[data-op="copy-sim"]').click(() => {
-            var array = this.table.getArray();
-            var slice = array.perf || this.table.getEntryLimit();
+            var array = this.table.getInternalEntries();
+            var slice = this.table.getArray().perf || this.table.getEntryLimit();
             if (slice) {
                 array = array.slice(0, slice);
             }
@@ -965,6 +965,7 @@ class BrowseView extends View {
             'g': 'Guild name',
             's': 'Server',
             'e': 'Custom expression',
+            '#': 'Show only players with specified tags',
             'l': 'Show only latest',
             'f': 'Show only first or first n entries',
             'r': 'Force recalculation of global variables',
@@ -976,7 +977,7 @@ class BrowseView extends View {
             'qc': 'Show only selected categories',
             't': 'Show online template directly'
         }).change((event) => {
-            var filter = $(event.currentTarget).val().split(/(?:\s|\b)(c|p|g|s|e|l|f|r|x|h|o|sr|q|qc|t):/);
+            var filter = $(event.currentTarget).val().split(/(?:\s|\b|^)(c|p|g|s|e|l|f|r|x|h|o|sr|q|qc|t|#):/);
 
             var terms = [
                 {
@@ -1060,6 +1061,13 @@ class BrowseView extends View {
                         },
                         arg: arg.toLowerCase().split('|').map(rarg => rarg.trim())
                     });
+                } else if (key == '#') {
+                    terms.push({
+                        test: (arg, player) => {
+                            return player.Data.tag && arg.some(rarg => player.Data.tag == rarg);
+                        },
+                        arg: arg.split('|').map(rarg => rarg.trim())
+                    })
                 } else if (key == 'l') {
                     terms.push({
                         test: (arg, player, timestamp) => player.Timestamp == timestamp,
@@ -2936,6 +2944,7 @@ class TemplatesView extends View {
         this.$update = this.$parent.find('[data-op="update"]').click(() => this.updateTemplate());
         this.$delete = this.$parent.find('[data-op="delete"]').click(() => this.deleteTemplate());
         this.$open = this.$parent.find('[data-op="open"]').click(() => this.openTemplate());
+        this.$unpublish = this.$parent.find('[data-op="unpublish"]').click(() => this.unpublishTemplate());
     }
 
     getCurrentView () {
@@ -3065,6 +3074,33 @@ class TemplatesView extends View {
         }
     }
 
+    unpublishTemplate () {
+        let name = this.tmp.name;
+
+        if (this.tmp.online) {
+            // Unpublish first if online
+            let key = this.tmp.online.key.trim();
+            let secret = this.tmp.online.secret.trim();
+
+            // Remove online template
+            $.ajax({
+                url: `https://sftools-api.herokuapp.com/scripts/delete?key=${key}&secret=${ secret }`,
+                type: 'GET'
+            }).done(obj => {
+                if (obj.success) {
+                    // Set as offline
+                    Templates.markAsOffline(name);
+                }
+
+                // Refresh
+                this.showTemplate(name);
+                this.setLoading(false);
+            }).fail(() => {
+                this.setLoading(false);
+            });
+        }
+    }
+
     deleteTemplate () {
         if (this.$delete.hasClass('basic')) {
             // Remove basic class from the button
@@ -3081,36 +3117,13 @@ class TemplatesView extends View {
             // Get values
             let name = this.tmp.name;
 
-            if (this.tmp.online) {
-                // Unpublish first if online
-                let key = this.tmp.online.key.trim();
-                let secret = this.tmp.online.secret.trim();
+            // Delete template
+            Templates.remove(name);
 
-                // Remove online template
-                $.ajax({
-                    url: `https://sftools-api.herokuapp.com/scripts/delete?key=${key}&secret=${ secret }`,
-                    type: 'GET'
-                }).done(obj => {
-                    if (obj.success) {
-                        // Set as offline
-                        Templates.markAsOffline(name);
-                    }
-
-                    // Refresh
-                    this.showTemplate(name);
-                    this.setLoading(false);
-                }).fail(() => {
-                    this.setLoading(false);
-                });
-            } else {
-                // Delete template
-                Templates.remove(name);
-
-                // Refresh everything
-                this.getCurrentView().updateTemplates();
-                this.clearOverride();
-                this.refreshList();
-            }
+            // Refresh everything
+            this.getCurrentView().updateTemplates();
+            this.clearOverride();
+            this.refreshList();
         }
     }
 
@@ -3150,9 +3163,10 @@ class TemplatesView extends View {
 
         // Reset online buttons
         this.$publish.addClass('disabled');
+        this.$unpublish.addClass('disabled');
 
         // Reset buttons
-        this.$delete.addClass('disabled basic').find('span').text('Remove');
+        this.$delete.addClass('basic');
         clearTimeout(this.deleteTimeout);
 
         this.$update.addClass('disabled basic');
@@ -3192,7 +3206,7 @@ class TemplatesView extends View {
             this.$key.val(tmp.online.key);
 
             // Don't allow delete when published
-            this.$delete.removeClass('disabled').find('span').text('Unpublish');
+            this.$unpublish.removeClass('disabled');
 
             // Allow publish when not equal
             if (tmp.timestamp != tmp.online.timestamp) {
@@ -3203,10 +3217,8 @@ class TemplatesView extends View {
         } else {
             this.$timestamp2.val('');
             this.$key.val('');
-
-            // Allow delete only when unpublished
-            this.$delete.removeClass('disabled').find('span').text('Remove');
             this.$publish.removeClass('disabled');
+            this.$unpublish.addClass('disabled');
         }
 
         // Update button

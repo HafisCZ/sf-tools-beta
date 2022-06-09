@@ -60,44 +60,45 @@ class Constants {
             'orange': '#ffbb33',
             'red': '#ff3547',
             'blue': '#0064b4',
-            '15min': '900000',
-            '1hour': '3600000',
-            '12hours': '43200000',
-            '1day': '86400000',
-            '3days': '259200000',
-            '7days': '604800000',
-            '21days': '1814400000',
-            'mount10': '1',
-            'mount20': '2',
-            'mount30': '3',
-            'mount50': '4',
-            'none': '0',
-            'warrior': '1',
-            'mage': '2',
-            'scout': '3',
-            'assassin': '4',
-            'battlemage': '5',
-            'berserker': '6',
-            'demonhunter': '7',
-            'druid': '8',
+            '15min': 900000,
+            '1hour': 3600000,
+            '12hours': 43200000,
+            '1day': 86400000,
+            '3days': 259200000,
+            '7days': 604800000,
+            '21days': 1814400000,
+            'mount10': 1,
+            'mount20': 2,
+            'mount30': 3,
+            'mount50': 4,
+            'none': 0,
+            'warrior': 1,
+            'mage': 2,
+            'scout': 3,
+            'assassin': 4,
+            'battlemage': 5,
+            'berserker': 6,
+            'demonhunter': 7,
+            'druid': 8,
+            'bard': 9,
             'empty': '',
-            'tiny': '40',
-            'small': '60',
-            'normal': '100',
-            'large': '160',
-            'huge': '200',
-            'scrapbook': '2200',
-            'max': '-1',
-            'weapon': '1',
-            'shield': '2',
-            'breastplate': '3',
-            'shoes': '4',
-            'gloves': '5',
-            'helmet': '6',
-            'belt': '7',
-            'necklace': '8',
-            'ring': '9',
-            'talisman': '10'
+            'tiny': 40,
+            'small': 60,
+            'normal': 100,
+            'large': 160,
+            'huge': 200,
+            'scrapbook': 2200,
+            'max': -1,
+            'weapon': 1,
+            'shield': 2,
+            'breastplate': 3,
+            'shoes': 4,
+            'gloves': 5,
+            'helmet': 6,
+            'belt': 7,
+            'necklace': 8,
+            'ring': 9,
+            'talisman': 10
         }
     }
 
@@ -167,12 +168,38 @@ function decodeScrapbook (data) {
     }
 }
 
-function createWebWorker (location) {
+// Loads file contents using ajax
+function fetchContent (location, useHosted = false) {
+    return $.ajax({
+        method: 'GET',
+        url: `${useHosted ? 'https://sftools.mar21.eu' : ''}/${location}`,
+        dataType: 'text'
+    });
+}
+
+// Creates a worker for pet simulators
+async function createPetWorker () {
+    let location = 'js/sim/pets.js';
+
     if (document.location.protocol == 'file:') {
-        return new Worker(URL.createObjectURL(new Blob([ $.ajax({ method: 'GET', url: 'https://sftools.mar21.eu/' + location, dataType: 'text', async: false }).responseText ], { type: 'text/javascript' })));
+        let blob = new Blob([
+            await fetchContent(location, true)
+        ], { type: 'text/javascript' });
+
+        return new Worker(URL.createObjectURL(blob));
     } else {
         return new Worker(location);
     }
+}
+
+// Creates worker for normal simulators (they require base.js)
+async function createSimulatorWorker (type) {
+    let localEnv = document.location.protocol == 'file:';
+    let blob = new Blob([
+        await fetchContent('js/sim/base.js', localEnv) + await fetchContent(`js/sim/${type}.js`, localEnv)
+    ], { type: 'text/javascript' });
+
+    return new Worker(URL.createObjectURL(blob));
 }
 
 // Helper function
@@ -558,17 +585,6 @@ const COLOR_MAP = {
     'whitesmoke': '#f5f5f5',
     'yellow': '#ffff00',
     'yellowgreen': '#9acd32'
-};
-
-const CLASS_MAP = {
-    1: 'Warrior',
-    2: 'Mage',
-    3: 'Scout',
-    4: 'Assassin',
-    5: 'Battle Mage',
-    6: 'Berserker',
-    7: 'Demon Hunter',
-    8: 'Druid'
 };
 
 function getColorFromName (name) {

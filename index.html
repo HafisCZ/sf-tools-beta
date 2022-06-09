@@ -101,6 +101,15 @@
                 opacity: 0.5;
             }
 
+            .wip::before {
+                content: 'WIP';
+                position: absolute;
+                left: calc(50% - 1em);
+                top: 4em;
+                color: orange;
+                font-weight: bold;
+            }
+
             .footer {
                 color: white;
                 opacity: 0.6;
@@ -218,6 +227,10 @@
             .divider {
                 margin-bottom: 0.75em;
             }
+
+            #sf-menu {
+                padding-bottom: 4em;
+            }
         </style>
     </head>
     <body>
@@ -240,6 +253,7 @@
                     <h2 class="role-mentor">Strider</h2>
                     <h2 class="role-admin">psychoazubi</h2>
                     <h2 class="role-mentor">Kraggori</h2>
+                    <h2 class="role-toolwizard">Timhot3p</h2>
                     <div class="divider"></div>
                     <h2 class="role-veteran">Minidave</h2>
                     <h2 class="role-toolwizard">burningcherry</h2>
@@ -339,10 +353,10 @@
                     </a>
                 </div>
                 <div class="column">
-                    <a href="compare.html">
+                    <a href="attributes.html">
                         <div class="dvselection">
-                            <div class="dvdescription" data-loca="index.compare.desc"></div>
-                            <div class="dvheader twoline" data-loca="index.compare.title"></div>
+                            <div class="dvdescription" data-loca="index.atts.desc"></div>
+                            <div class="dvheader twoline" data-loca="index.atts.title"></div>
                         </div>
                     </a>
                 </div>
@@ -379,6 +393,14 @@
                     </a>
                 </div>
                 <div class="column">
+                    <a href="hydra.html">
+                        <div class="dvselection">
+                            <div class="dvdescription" data-loca="index.hydra.desc"></div>
+                            <div class="dvheader twoline" data-loca="index.hydra.title"></div>
+                        </div>
+                    </a>
+                </div>
+                <div class="column">
                     <a href="fights.html">
                         <div class="dvselection">
                             <div class="dvdescription" data-loca="index.fights.desc"></div>
@@ -391,14 +413,6 @@
                         <div class="dvselection">
                             <div class="dvdescription" data-loca="index.digest.desc"></div>
                             <div class="dvheader twoline" data-loca="index.digest.title"></div>
-                        </div>
-                    </a>
-                </div>
-                <div class="column">
-                    <a href="attributes.html">
-                        <div class="dvselection">
-                            <div class="dvdescription" data-loca="index.atts.desc"></div>
-                            <div class="dvheader twoline" data-loca="index.atts.title"></div>
                         </div>
                     </a>
                 </div>
@@ -418,7 +432,7 @@
             </div>
             <div class="footer-legal">
                 <a href='https://ko-fi.com/D1D02FFQR' target='_blank' style="pointer-events: all; color: orange;"><i class="coffee icon"></i> Give mar some shrooms</a><br/>
-                Copyright <i class="copyright outline icon"></i>2021 mar21 | mar21#4673 | support@mar21.eu<br>
+                Copyright <i class="copyright outline icon"></i>2022 mar21 | mar21#4673 | support@mar21.eu<br>
                 Special thanks to <a href="https://www.zeraffim.com/" target='_blank' class="role-mentor clickable" style="pointer-events: all; font-weight: bold;">Zeraffim</a>, <b class="role-veteran">BoeseMelone</b>, <b class="role-mentor">Strider</b>, <b class="role-admin">Zorago</b> and <b class="role-admin">Acclamator</b><br>
                 Distributed <b>AS IS</b>. This site is not affiliated with <b>Playa Games</b> in any way.
             </div>

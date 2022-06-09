@@ -47,8 +47,8 @@ class PlayersTableArray extends Array {
         super();
 
         this.perf = perf;
-        this.timestamp = ts;
-        this.reference = rs;
+        this.timestamp = _safe_int(ts);
+        this.reference = _safe_int(rs);
     }
 
     add (player, compare, latest, hidden) {
@@ -69,8 +69,8 @@ class GroupTableArray extends Array {
 
         this.joined = joined;
         this.kicked = kicked;
-        this.timestamp = ts;
-        this.reference = rs;
+        this.timestamp = _safe_int(ts);
+        this.reference = _safe_int(rs);
         this.missing = missing;
     }
 
@@ -513,6 +513,7 @@ class TableInstance {
 
                 // Create new entry and push it to the list
                 this.entries.push({
+                    player: player,
                     content: content
                 })
             }
@@ -570,6 +571,7 @@ class TableInstance {
 
                 // Create new entry and push it to the list
                 this.entries.push({
+                    player: player,
                     content: content,
                     sorting: this.flat.reduce((obj, header) => {
                         let { order, sortkey, flip, expr, sort } = header;
@@ -648,6 +650,7 @@ class TableInstance {
 
                 // Create new entry and push it to the list
                 this.entries.push({
+                    player: player,
                     content: content,
                     sorting: this.flat.reduce((obj, header) => {
                         let { order, sortkey, flip, expr, sort } = header;
@@ -1391,6 +1394,10 @@ class TableController {
 
     getArray () {
         return this.table ? this.table.array : [];
+    }
+
+    getInternalEntries () {
+        return this.table ? this.table.entries : [];
     }
 
     clearSorting () {

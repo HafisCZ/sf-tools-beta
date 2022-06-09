@@ -2499,6 +2499,17 @@ const SP_KEYWORD_MAPPING_0 = {
         format: (p, c, e, x) => MASK_TYPES[x],
         difference: false,
         statistics: false
+    },
+    'Instrument': {
+        expr: p => p.Instrument,
+        format: (p, c, e, x) => INSTRUMENT_TYPES[x],
+        difference: false,
+        statistics: false
+    },
+    'Tag': {
+        expr: p => p.Data.tag,
+        difference: false,
+        statistics: false
     }
 };
 
@@ -2580,6 +2591,11 @@ const SP_KEYWORD_MAPPING_2 = {
     },
     'Stone': {
         expr: p => p.Fortress.Stone
+    },
+    'Used Beers': {
+        expr: p => p.UsedBeers,
+        statistics: false,
+        difference: false
     },
     'Scrapbook Items': {
         expr: p => p.Scrapbook
@@ -2803,6 +2819,10 @@ const SP_KEYWORD_MAPPING_2 = {
         statistics: false
     },
     'Time Machine Daily': {
+        expr: p => p.Underworld && p.Underworld.TimeMachineDaily ? Math.trunc(p.Underworld.TimeMachineDaily * 0.25) : undefined,
+        statistics: false
+    },
+    'Time Machine Daily Max': {
         expr: p => p.Underworld ? p.Underworld.TimeMachineDaily : undefined,
         statistics: false
     },

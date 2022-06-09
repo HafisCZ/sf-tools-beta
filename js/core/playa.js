@@ -509,6 +509,7 @@ class SFFighter {
         this.Wpn2 = new SFItem(dataType.sub(12), 2, [1, 2]);
 
         this.Mask = this.Wpn1.Type == -11 ? 1 : (this.Wpn1.Type == -12 ? 2 : 0);
+        this.Instrument = 0;
     }
 
     getMonsterID () {
@@ -1356,7 +1357,11 @@ class SFOwnPlayer extends SFPlayer {
         this.Damage.Avg = (this.Damage.Min + this.Damage.Max) / 2;
         dataType.skip(1); // skip
         this.MountExpire = dataType.long() * 1000 + data.offset,
-        dataType.skip(28); // skip
+        dataType.skip(3);
+        this.ThirstReroll = dataType.long() * 1000 + data.offset;
+        this.ThirstLeft = dataType.long();
+        this.UsedBeers = dataType.long();
+        dataType.skip(22); // skip
         this.Dungeons.Normal[0] = dataType.long();
         this.Dungeons.Normal[1] = dataType.long();
         this.Dungeons.Normal[2] = dataType.long();
@@ -1705,7 +1710,7 @@ class SFOwnPlayer extends SFPlayer {
                 Finish: dataType.long() * 1000 + data.offset,
                 Start: dataType.long() * 1000 + data.offset
             };
-            dataType.skip(1);
+            dataType.skip(2);
             this.Underworld.TimeMachineThirst = dataType.long();
             this.Underworld.TimeMachineMax = dataType.long();
             this.Underworld.TimeMachineDaily = dataType.long();
@@ -1779,6 +1784,10 @@ class SFCompanion extends SFPlayer {
         this.Constitution = comp.Constitution;
         this.Luck = comp.Luck;
 
+        this.evaluateCompanionCommon(player);
+    }
+
+    evaluateCompanionCommon(player) {
         this.Primary = this.getPrimaryAttribute();
 
         this.addCalculatedAttributes(this.Strength, player.Pets.Water);
@@ -1925,6 +1934,7 @@ function toSimulatorModel (p) {
         Armor: p.Armor,
         Class: p.Class,
         Mask: p.Mask,
+        Instrument: p.Instrument,
         Name: p.Name,
         Level: p.Level,
         Identifier: p.Identifier,

@@ -7,7 +7,33 @@ const PLAYER_CLASS = [
     'Battle Mage',
     'Berserker',
     'Demon Hunter',
-    'Druid'
+    'Druid',
+    'Bard'
+];
+
+const CLASS_MAP = {
+    1: 'Warrior',
+    2: 'Mage',
+    3: 'Scout',
+    4: 'Assassin',
+    5: 'Battle Mage',
+    6: 'Berserker',
+    7: 'Demon Hunter',
+    8: 'Druid',
+    9: 'Bard'
+};
+
+const PLAYER_CLASS_SEARCH = [
+    '',
+    'warrior',
+    'mage',
+    'scout',
+    'assassin',
+    'battle mage',
+    'berserker',
+    'demon hunter',
+    'druid',
+    'bard'
 ];
 
 const PLAYER_ACTIONS = [
@@ -21,6 +47,12 @@ const MASK_TYPES = [
     'None',
     'Bear',
     'Cat'
+];
+
+const INSTRUMENT_TYPES = [
+    'Harp',
+    'Guitar',
+    'Flute'
 ];
 
 const SCROLL_MAP = {
@@ -46,18 +78,6 @@ function getEasterEgg (id) {
         return '';
     }
 }
-
-const PLAYER_CLASS_SEARCH = [
-    '',
-    'warrior',
-    'mage',
-    'scout',
-    'assassin',
-    'battle mage',
-    'berserker',
-    'demon hunter',
-    'druid'
-];
 
 const PLAYER_MOUNT = [
     '',
@@ -182,6 +202,7 @@ const FIGHT_TYPES = {
     PetsDefend: 15,
     Underworld: 16,
     GuildPet: 17,
+    Hellevator: 18,
     FortRevenge: 109
 };
 
@@ -1115,7 +1136,7 @@ const GUILD_ROLE_OFFICER = 2;
 const GUILD_ROLE_MEMBER = 3;
 const GUILD_ROLE_INVITED = 4;
 
-const SCRAPBOOK_COUNT = 2210;
+const SCRAPBOOK_COUNT = 2211;
 
 const RUNE_VALUE = {
     GOLD: function (rune) {

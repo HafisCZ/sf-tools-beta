@@ -247,6 +247,13 @@
                                     </div>
                                 </div>
                                 <div class="field">
+                                    <label>Instrument</label>
+                                    <div class="ui selection compact dropdown" data-path="Instrument">
+                                        <div class="text"></div>
+                                        <i class="dropdown icon"></i>
+                                    </div>
+                                </div>
+                                <div class="field">
                                     <label>Level</label>
                                     <input class="text-center" type="text" data-path="Level" placeholder="1 - 700">
                                 </div>
@@ -339,6 +346,13 @@
                                 <div class="field">
                                     <label>Armor</label>
                                     <input class="text-center" type="text" data-path="Armor" placeholder="Armor points">
+                                </div>
+                                <div class="field">
+                                    <label>Shield</label>
+                                    <div class="ui selection compact dropdown" data-path="BlockChance">
+                                        <div class="text"></div>
+                                        <i class="dropdown icon"></i>
+                                    </div>
                                 </div>
                                 <div class="field">
                                     <label>Fire</label>
@@ -517,6 +531,7 @@
                         name: new Field('[data-path="Name"]', ''),
                         class: new Field('[data-path="Class"]', '1'),
                         mask: new Field('[data-path="Mask"]', '0'),
+                        instrument: new Field('[data-path="Instrument"]', '0'),
                         level: new Field('[data-path="Level"]', '', Field.isPlayerLevel),
                         armor: new Field('[data-path="Armor"]', '', Field.isNumber),
 
@@ -531,6 +546,7 @@
                         gladiator: new Field('[data-path="Fortress.Gladiator"]', '', Field.isGladiator),
                         potion_life: new Field('[data-path="Potions.Life"]', '0'),
                         enchantment: new Field('[data-path="Items.Hand.HasEnchantment"]', 'false'),
+                        shield: new Field('[data-path="BlockChance"]', '25'),
 
                         str: new Field('[data-path="Strength.Total"]', '', Field.isNumber),
                         dex: new Field('[data-path="Dexterity.Total"]', '', Field.isNumber),
@@ -566,7 +582,9 @@
                             $('[data-optional="Weapon2"]').hide();
                         }
 
+                        this.fields['shield'].show(value == 1);
                         this.fields['mask'].show(value == 8);
+                        this.fields['instrument'].show(value == 9);
                     }).dropdown('set selected', '1');
 
                     this.fields['mask'].$object.dropdown({
@@ -587,6 +605,16 @@
                         ]
                     }).dropdown('set selected', '0');
 
+                    this.fields['instrument'].$object.dropdown({
+                        preserveHTML: true,
+                        values: INSTRUMENT_TYPES.map((name, index) => {
+                            return {
+                                name: `<img class="ui centered image class-picture" src="res/instrument${index}.png"><span>${name}</span>`,
+                                value: index
+                            }
+                        })
+                    }).dropdown('set selected', '0');
+
                     this.fields['potion_life'].$object.dropdown({
                         values: [
                             {
@@ -599,6 +627,19 @@
                             }
                         ]
                     }).dropdown('set selected', '0');
+
+                    this.fields['shield'].$object.dropdown({
+                        values: [
+                            {
+                                name: 'No',
+                                value: 0
+                            },
+                            {
+                                name: 'Yes',
+                                value: 25
+                            }
+                        ]
+                    }).dropdown('set selected', '25');
 
                     this.fields['weapon1_rune'].$object.dropdown({
                         values: [
@@ -854,6 +895,7 @@
                             SFItem.forceCorrectRune(d.Items.Wpn1);
                             SFItem.forceCorrectRune(d.Items.Wpn2);
 
+                            if (d.Class == 1 && typeof d.BlockChance == 'undefined') d.BlockChance = d.Items.Wpn2.DamageMin;
                             if (d.Class != 4) {
                                 d.Items.Wpn2 = SFItem.empty();
                             }
@@ -869,6 +911,7 @@
                             SFItem.forceCorrectRune(obj.Items.Wpn1);
                             SFItem.forceCorrectRune(obj.Items.Wpn2);
 
+                            if (obj.Class == 1 && typeof obj.BlockChance == 'undefined') obj.BlockChance = obj.Items.Wpn2.DamageMin;
                             if (obj.Class != 4) {
                                 obj.Items.Wpn2 = SFItem.empty();
                             }
@@ -888,6 +931,7 @@
                     SFItem.forceCorrectRune(obj.Items.Wpn1);
                     SFItem.forceCorrectRune(obj.Items.Wpn2);
 
+                    if (obj.Class == 1 && typeof obj.BlockChance == 'undefined') obj.BlockChance = obj.Items.Wpn2.DamageMin;
                     if (obj.Class != 4) {
                         obj.Items.Wpn2 = SFItem.empty();
                     }
@@ -900,13 +944,16 @@
             $('#sim-iterations').captiveInputField('player_sim/iterations', 2500, v => !isNaN(v) && v >= 1);
 
             // Run simulation
-            $('#sim-run').click(function () {
+            $('#sim-run').click(async function () {
                 if (players.length > 1 && (mode != 1 || (mode == 1 && players.find(p => p.index == yourself)))) {
                     UILogger.clear();
 
                     for (var i = 0; i < players.length; i++) {
                         players[i].score = null;
-                        players[i].player.IHOFMode = modeIhof;
+                        players[i].player.ForceGladiator = 15;
+                        if (players[i].player.Class == 1 && players[i].player.BlockChance == '0') {
+                            players[i].player.NoSkip = true;
+                        }
                     }
 
                     showPlayers();
@@ -939,7 +986,7 @@
 
                     for (var i = 0; i < players.length; i += blockSize) {
                         var block = players.slice(i, i + blockSize);
-                        var worker = createWebWorker('js/sim/players.js');
+                        var worker = await createSimulatorWorker('players');
 
                         worker.addEventListener('message', function (message) {
                             if (message.data.command == 'finished') {
@@ -1016,7 +1063,14 @@
             });
 
             $('#sim-copyall').click(function () {
-                copyText(JSON.stringify(players.map(p => toSimulatorModel(p.player))));
+                copyText(JSON.stringify(players.map(p => {
+                    let m = toSimulatorModel(p.player);
+                    if (p.player.Class == 1 && typeof p.player.BlockChance != 'undefined') {
+                        m.BlockChance = p.player.BlockChance;
+                    }
+
+                    return m;
+                })));
             });
 
             $('#sim-add').click(function () {
@@ -1141,6 +1195,7 @@
                             <div class="two wide text-center column">
                                 <img class="ui medium centered image" style="width: 50px;" src="res/class${ player.Class }.png">
                                 ${ player.Class == 8 && player.Mask > 0 ? `<img class="ui image" src="res/mask${ player.Mask }.png" style="position: absolute; right: 0.75em; bottom: 0.1em; width: 1.55em; height: 1.55em;">` : '' }
+                                ${ player.Class == 9 ? `<img class="ui image" src="res/instrument${ player.Instrument }.png" style="position: absolute; right: 0.75em; bottom: 0.1em; width: 1.55em; height: 1.55em;">` : '' }
                             </div>
                             <div class="one wide text-center column">
                                 <b>${ player.Level }</b>

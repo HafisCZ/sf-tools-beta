@@ -571,6 +571,14 @@ class Field {
         return Field.isNumber(val) && val <= 15;
     }
 
+    static isHydraPlayerCount (val) {
+        return Field.isNumber(val) && val >= 10 && val <= 50;
+    }
+
+    static isHydraPetLevel (val) {
+        return Field.isNonZero(val) && val <= 600;
+    }
+
     static isNonZero (val) {
         return !isNaN(val) && val > 0;
     }
