@@ -23,6 +23,16 @@ function getRuneValue (item, rune) {
     return item.AttributeTypes[2] == rune ? item.Attributes[2] : 0;
 }
 
+// Masks
+const MASK_NONE = 0;
+const MASK_BEAR = 1;
+const MASK_CAT = 2;
+
+// Instruments
+const INSTRUMENT_HARP = 0;
+const INSTRUMENT_LUTE = 1;
+const INSTRUMENT_FLUTE = 2;
+
 // Fighter models
 class FighterModel {
     static create (index, player) {
@@ -89,7 +99,7 @@ class FighterModel {
         } else {
             if (this.Player.Class == BATTLEMAGE) {
                 return Math.min(this.getMaximumDamageReduction(), this.Player.Armor / source.Player.Level + 40);
-            } else if (this.Player.Class == DRUID && this.Player.Mask == 1) {
+            } else if (this.Player.Class == DRUID && this.Player.Mask == MASK_BEAR) {
                 return Math.min(this.getMaximumDamageReduction(), 2 * this.Player.Armor / source.Player.Level);
             } else {
                 return Math.min(this.getMaximumDamageReduction(), this.Player.Armor / source.Player.Level);
@@ -107,11 +117,16 @@ class FighterModel {
             case SCOUT:
             case ASSASSIN:
             case BERSERKER:
+            case BARD:
                 return 25;
             case MAGE:
                 return 10;
             case DRUID:
-                return this.Player.Mask == 1 ? 50 : (this.Player.Mask == 2 ? 25 : 0);
+                switch (this.Player.Mask) {
+                    case MASK_BEAR: return 50;
+                    case MASK_CAT: return 25;
+                    default: 0;
+                }
             default:
                 return 0;
         }
@@ -129,7 +144,11 @@ class FighterModel {
                 case WARRIOR:
                     return typeof this.Player.BlockChance !== 'undefined' ? this.Player.BlockChance : 25;
                 case DRUID:
-                    return this.Player.Mask == 1 ? 25 : (this.Player.Mask == 2 ? 50 : 0);
+                switch (this.Player.Mask) {
+                    case MASK_BEAR: return 25;
+                    case MASK_CAT: return 50;
+                    default: 0;
+                }
                 default:
                     return 0;
             }
@@ -147,10 +166,16 @@ class FighterModel {
             case ASSASSIN:
             case BERSERKER:
                 return 4;
+            case BARD:
+                return 3;
             case MAGE:
                 return 2;
             case DRUID:
-                return this.Player.Mask == 1 ? 5 : (this.Player.Mask == 2 ? 4 : 2);
+                switch (this.Player.Mask) {
+                    case MASK_BEAR: return 5;
+                    case MASK_CAT: return 4;
+                    default: 2;
+                }
             default:
                 return 0;
         }
@@ -229,13 +254,11 @@ class FighterModel {
 
     // Get damage range
     getDamageRange (weapon, target, secondary = false) {
-        let mp = 1 - target.getDamageReduction(this) / 100;
-
         let mf = (1 - target.Player.Runes.ResistanceFire / 100) * (getRuneValue(weapon, RUNE_FIRE_DAMAGE) / 100);
         let mc = (1 - target.Player.Runes.ResistanceCold / 100) * (getRuneValue(weapon, RUNE_COLD_DAMAGE) / 100);
         let ml = (1 - target.Player.Runes.ResistanceLightning / 100) * (getRuneValue(weapon, RUNE_LIGHTNING_DAMAGE) / 100);
 
-        let m = (1 + this.Player.Dungeons.Group / 100) * mp * (1 + mf + mc + ml);
+        let m = (1 + this.Player.Dungeons.Group / 100) * target.DamageReduction * (1 + mf + mc + ml);
 
         let aa = this.getAttribute(this);
         let ad = target.getAttribute(this) / 2;
@@ -257,6 +280,8 @@ class FighterModel {
         this.SkipChance = this.getBlockChance(target);
         this.CriticalChance = this.getCriticalChance(target);
         this.TotalHealth = this.getHealth();
+
+        target.DamageReduction = 1 - target.getDamageReduction(this) / 100;
 
         // Weapon
         let weapon1 = this.Player.Items.Wpn1;
@@ -299,6 +324,10 @@ class FighterModel {
     skipNextRound () {
         return false;
     }
+
+    updateEffects () {
+
+    }
 }
 
 class WarriorModel extends FighterModel {
@@ -333,12 +362,12 @@ class DruidModel extends FighterModel {
     getDamageRange (weapon, target) {
         var range = super.getDamageRange(weapon, target);
 
-        if (this.Player.Mask == 1) {
+        if (this.Player.Mask == MASK_BEAR) {
             return {
                 Max: Math.ceil((1 + 1 / 3) * range.Max / 3),
                 Min: Math.ceil((1 + 1 / 3) * range.Min / 3)
             }
-        } else if (this.Player.Mask == 2) {
+        } else if (this.Player.Mask == MASK_CAT) {
             return {
                 Max: Math.ceil((1 + 2 / 3) * range.Max / 3),
                 Min: Math.ceil((1 + 2 / 3) * range.Min / 3)
@@ -430,7 +459,7 @@ class DemonHunterModel extends FighterModel {
 
     onDeath (source) {
         if (source.Player.Class != MAGE && source.Player.Class != DRUID && getRandom(25)) {
-            this.Health = this.TotalHealth * Math.min(0.1, 0.9 - this.DeathTriggers * 0.1);
+            this.Health = this.TotalHealth * Math.max(0.1, 0.9 - this.DeathTriggers * 0.1);
 
             return true;
         }
@@ -442,9 +471,92 @@ class DemonHunterModel extends FighterModel {
 class BardModel extends FighterModel {
     constructor (i, p) {
         super(i, p);
+
+        this.Effect = 4;
+        this.DamageTaken = p.Instrument == INSTRUMENT_FLUTE;
+
+        this.HealMultiplier = 0;
+        this.DamageMultiplier = 0;
+        this.IncomingDamageMultiplier = 0;
+
+        this.EffectRounds = 0;
+        this.EffectRoundsRemaining = 0;
     }
 
-    // TODO
+    reset () {
+        super.reset();
+
+        this.HealMultiplier = 0;
+        this.DamageMultiplier = 0;
+        this.IncomingDamageMultiplier = 0;
+
+        this.EffectRounds = 0;
+        this.EffectRoundsRemaining = 0;
+    }
+
+    onDamageTaken (source, damage) {
+        let state = super.onDamageTaken(source, damage);
+        if (state == 1 && this.HealMultiplier) {
+            this.Health += this.HealMultiplier * this.TotalHealth;
+        }
+
+        return state;
+    }
+
+    rollEffectLevel () {
+        let roll = Math.random() * 100;
+
+        return roll < 25 ? 0 : (roll < 75 ? 1 : 2);
+    }
+
+    rollEffectRounds (level) {
+        let rounds = Math.min(1, level);
+
+        if (this.Player.Constitution.Total >= this.Player.Intelligence.Total / 2) {
+            rounds++;
+        }
+
+        if (this.Player.Constitution.Total >= 3 * this.Player.Intelligence.Total / 4) {
+            rounds++;
+        }
+
+        return rounds;
+    }
+
+    rollEffect (target) {
+        let level = this.rollEffectLevel();
+
+        this.EffectRoundsRemaining = this.rollEffectRounds(level);
+
+        if (this.Player.Instrument == INSTRUMENT_HARP) {
+            if (target.Player.Class != MAGE) {
+                let multiplier = 1 / this.DamageReduction * (1 - [ 30, 40, 50 ][level] / 100);
+
+                this.IncomingDamageMultiplier = multiplier;
+            }
+        } else if (this.Player.Instrument == INSTRUMENT_LUTE) {
+            let multiplier = 1 + [ 20, 25, 30 ][level] / 100;
+
+            this.DamageMultiplier = multiplier;
+        } else /* INSTRUMENT_FLUTE */ {
+            let multiplier = [ 5, 10, 15 ][level] / 100;
+
+            this.HealMultiplier = multiplier;
+        }
+    }
+
+    updateEffects (target) {
+        if (--this.EffectRoundsRemaining <= 0) {
+            this.HealMultiplier = 0;
+            this.DamageMultiplier = 0;
+            this.IncomingDamageMultiplier = 0;
+        }
+
+        if (--this.EffectRounds <= 0) {
+            this.EffectRounds = this.Effect;
+            this.rollEffect(target);
+        }
+    }
 }
 
 // Shared class between all simulators in order to make updates simple
@@ -569,6 +681,10 @@ class SimulatorBase {
     }
 
     attack (source, target, weapon = source.Weapon1, extra = 0) {
+        if (source.Effect) {
+            source.updateEffects(target);
+        }
+
         var turn = this.turn++;
         var rage = 1 + turn / 6;
 
@@ -578,6 +694,14 @@ class SimulatorBase {
 
         if (!skipped) {
             damage = rage * (Math.random() * (1 + weapon.Max - weapon.Min) + weapon.Min);
+            if (source.DamageMultiplier) {
+                damage *= source.DamageMultiplier;
+            }
+
+            if (target.IncomingDamageMultiplier) {
+                damage *= target.IncomingDamageMultiplier;
+            }
+
             if (critical = getRandom(source.CriticalChance)) {
                 damage *= source.Critical;
             }
