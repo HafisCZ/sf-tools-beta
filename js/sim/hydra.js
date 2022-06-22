@@ -2,13 +2,9 @@ FIGHT_DUMP_ENABLED = false;
 FIGHT_DUMP_OUTPUT = [];
 
 // Override some methods
-FighterModel.prototype.getCriticalChance = function (target) {
-    return Math.min(50, this.Player.Luck.Total * 2.5 / target.Player.Level);
-}
-
 FighterModel.prototype.getHealth = function () {
-    if (this.Player.Health) {
-        return this.Player.Health;
+    if (this.Player.ForceHealth) {
+        return this.Player.ForceHealth;
     } else {
         return (this.getHealthMultiplier() * (this.Player.Level + 1) * this.Player.Constitution.Total) % Math.pow(2, 32);
     }
@@ -22,11 +18,10 @@ FighterModel.prototype.getDamageRange = function (weapon, target) {
     let min = weapon.DamageMin;
     let max = weapon.DamageMax;
 
-    let mp = 1 - target.getDamageReduction(this) / 100;
     let aa = this.getAttribute(this);
     let ad = target.getAttribute(this) / 2;
 
-    let dm = mp * (1 + Math.max(aa / 2, aa - ad) / 10);
+    let dm = target.DamageReduction * (1 + Math.max(aa / 2, aa - ad) / 10);
 
     if (!min || !max) {
         min = max = this.getFixedDamage();
