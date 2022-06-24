@@ -15,8 +15,9 @@
 
         <script src="vendor/js/jquery.3.4.1.min.js"></script>
         <script src="vendor/js/semantic.min.js"></script>
-        <script src="vendor/js/sentry.bundle.min.js"></script>
         <script src="vendor/js/chart.min.js"></script>
+        <script src="vendor/js/html2canvas.min.js"></script>
+        <script src="vendor/js/sentry.bundle.min.js"></script>
 
         <script src="js/enum.js"></script>
         <script src="js/util.js"></script>
@@ -158,6 +159,7 @@
 
         <div id="results-modal" class="ui mini modal">
             <div class="header">Results</div>
+            <button id="save-screenshot" class="ui small basic icon button" style="position: absolute; right: .75em; top: 1em;" data-position="bottom center" data-tooltip="Save as image"><i class="download icon"></i></button>
             <div style="padding-left: 1em; padding-right: 1em; border-bottom: 1px solid rgba(34,36,38,.15)">
                 <canvas id="list-winchart" style="width: 100%;"></canvas>
             </div>
@@ -176,7 +178,7 @@
                         <label>Enable cheats</label>
                     </div>
                 </div>
-                <div class="field"><b>General</b></div>
+                <div class="field"><h3 class="ui white header">General</h3></div>
                 <div class="field">
                     <div class="ui checkbox">
                         <input type="checkbox" class="hidden" data-cheat="enchantments">
@@ -195,7 +197,7 @@
                         <label>Maximum pets</label>
                     </div>
                 </div>
-                <div class="field"><b>Potions</b> (up to 3)</div>
+                <div class="field"><h3 class="ui white header">Potions (max 3)</h3></div>
                 <div class="two fields">
                     <div class="field">
                         <div class="ui checkbox">
@@ -238,6 +240,13 @@
                         </div>
                     </div>
                 </div>
+                <div class="field"><h3 class="ui white header">Change class</h3></div>
+                <div class="field" style="margin-right: 1em;">
+                    <div class="ui selection compact dropdown" data-cheat="class">
+                        <div class="text"></div>
+                        <i class="dropdown icon"></i>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -270,14 +279,6 @@
                             delete v.floors[k2];
                             v.floors[randomString(k2)] = v2;
                         }
-                    }
-                }
-
-                function toggleAll (dis) {
-                    if (dis) {
-                        PopupController.open(LoaderPopup);
-                    } else {
-                        PopupController.close(LoaderPopup);
                     }
                 }
 
@@ -375,8 +376,8 @@
                             Wpn2: {
                                 AttributeTypes: { 2: data.runes ? data.runes.type : 0 },
                                 Attributes: { 2: data.runes ? data.runes.damage : 0 },
-                                DamageMax: data.ass ? data.max : 0,
-                                DamageMin: data.ass ? data.min : 0,
+                                DamageMax: data.broken ? 0 : data.max,
+                                DamageMin: data.broken ? 0 : data.min,
                                 HasEnchantment: false
                             }
                         }
@@ -589,7 +590,7 @@
                 });
 
                 $('#load-stats').click(() => {
-                    toggleAll(true);
+                    LoaderPopup.toggle(true);
                     DatabaseManager.load(SELF_PROFILE).then(function () {
                         $('#stats-list').empty();
 
@@ -697,7 +698,7 @@
                                     </label>
                                     <input type="file" multiple data-op="upload" accept=".har,.json" class="css-hidden" id="button-upload">
                                 `).change((fileEvent) => {
-                                    toggleAll(true);
+                                    LoaderPopup.toggle(true);
 
                                     let pendingPromises = [];
                                     Array.from(fileEvent.target.files).forEach(file => {
@@ -713,9 +714,9 @@
                             )
                         );
 
-                        toggleAll();
+                        LoaderPopup.toggle(false);
                     }).catch(function () {
-                        toggleAll();
+                        LoaderPopup.toggle(false);
                         Logger.log('WARNING', 'Database could not be opened!');
                         $('#stats-list').empty();
                     });
@@ -771,7 +772,7 @@
 
                 $('#sim-run-all').click(async function () {
                     if (availableBosses && availableBosses.length > 0 && editor.valid()) {
-                        toggleAll(true);
+                        LoaderPopup.toggle(true);
 
                         let results = [];
                         let resultsRemaining = availableBosses.length;
@@ -795,7 +796,7 @@
                                     };
 
                                     if (--resultsRemaining <= 0) {
-                                        toggleAll();
+                                        LoaderPopup.toggle(false);
                                         showMassDungeonResults(availableBosses, results);
                                     } else if (pendingInstances.length > 0) {
                                         let [ secWorker, args ] = pendingInstances.pop();
@@ -823,7 +824,7 @@
 
                 $('#sim-run').click(async function () {
                     if (boss && editor.valid()) {
-                        toggleAll(true);
+                        LoaderPopup.toggle(true);
 
                         let playerInstances = preparePlayerInstances(dungeon);
                         let threads = Math.max(1, Number($('#sim-threads').val()) || 2);
@@ -871,7 +872,7 @@
 
                                         showGraph(chart, dungeon, boss, totalScore, totalTries, _sort_asc(finalResults));
                                         $('#winchart').removeClass('faded-out');
-                                        toggleAll();
+                                        LoaderPopup.toggle(false);
                                     }
                                 }
                             }, false);
@@ -896,8 +897,43 @@
                     graph.update(0);
                 }
 
+                $('#save-screenshot').click(function () {
+                    let target = document.querySelector('#results-modal .content');
+
+                    target.style['overflow-y'] = '';
+                    target.style['max-height'] = '';
+
+                    html2canvas(target, {
+                        logging: false,
+                        onclone: doc => {
+                            target.style['overflow-y'] = 'auto';
+                            target.style['max-height'] = '70vh';
+                        }
+                    }).then(canvas => {
+                        canvas.toBlob(blob => {
+                            window.download(`dungeons_${formatDate(Date.now())}.png`, blob);
+                        });
+                    });
+                });
+
+                $('[data-cheat="class"]').dropdown({
+                    preserveHTML: true,
+                    values: [
+                        {
+                            name: 'Keep original',
+                            value: 0
+                        },
+                        ... Object.entries(CLASS_MAP).map((e) => {
+                            return {
+                                name: `<img class="ui centered image class-picture" src="res/class${ e[0] }.png"><span>${ e[1] }</span>`,
+                                value: e[0]
+                            };
+                        })
+                    ]
+                }).dropdown('set selected', '0');
+
                 function applyCheats (player) {
-                    let cheats = _array_to_hash($('[data-cheat]').toArray(), el => [el.dataset.cheat, el.checked]);
+                    let cheats = _array_to_hash($('[data-cheat]').toArray(), el => [el.dataset.cheat, el.tagName == 'DIV' ? parseInt($(el).dropdown('get value')) : el.checked]);
 
                     if (cheats.pets) {
                         player.Pets = {
@@ -966,6 +1002,38 @@
                                 companion.evaluateCompanionCommon(player);
                             }
                         }
+                    }
+
+                    if (cheats.class) {
+                        const swapAttributes = function (obj, type, fromClass, toClass) {
+                            let attributes = _array_to_hash(['Main', 'Side1', 'Side2'], kind => [kind, _dig(obj, MAIN_ATTRIBUTE_MAP[kind][fromClass - 1], type)]);
+                            for (let kind of ['Main', 'Side1', 'Side2']) {
+                                obj[MAIN_ATTRIBUTE_MAP[kind][toClass - 1]][type] = attributes[kind];
+                            }
+                        }
+
+                        const scaleValue = function (value, mapping, fromClass, toClass) {
+                            return Math.ceil(value / (mapping[fromClass - 1]) * (mapping[toClass - 1]));
+                        }
+
+                        swapAttributes(player, 'Base', player.Class, cheats.class);
+                        swapAttributes(player, 'Total', player.Class, cheats.class);
+
+                        player.Armor = scaleValue(player.Armor, [50, 25, 10, 25, 10, 25, 50, 25, 25], player.Class, cheats.class);
+                        player.Items.Wpn1.DamageMin = scaleValue(player.Items.Wpn1.DamageMin, [2, 4.5, 2.5, 2, 2, 2, 2.5, 4.5, 4.5], player.Class, cheats.class);
+                        player.Items.Wpn1.DamageMax = scaleValue(player.Items.Wpn1.DamageMax, [2, 4.5, 2.5, 2, 2, 2, 2.5, 4.5, 4.5], player.Class, cheats.class);
+
+                        if (cheats.class == 1 /* WARRIOR */) {
+                            player.Items.Wpn2.DamageMin = 25;
+                        } else if (cheats.class == 4 /* ASSASSIN */) {
+                            player.Items.Wpn2 = player.Items.Wpn1;
+                        } else if (cheats.class == 8 /* DRUID */) {
+                            player.Mask = 2;
+                        } else if (cheats.class == 9 /* BARD */) {
+                            player.Instrument = 0;
+                        }
+
+                        player.Class = cheats.class;
                     }
 
                     if (cheats.runes) {

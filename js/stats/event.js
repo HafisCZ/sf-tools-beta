@@ -1772,14 +1772,14 @@ class FilesView extends View {
     // Delete all
     deleteAll () {
         PopupController.open(ConfirmationPopup, 'Delete all', 'Are you sure you want to delete all stored player data?', () => {
-            PopupController.open(LoaderPopup);
+            LoaderPopup.toggle(true);
             DatabaseManager.purge().then(() => this.show());
         }, () => {}, true, 2)
     }
 
     // Delete selected
     deleteSelected () {
-        PopupController.open(LoaderPopup);
+        LoaderPopup.toggle(true);
         if (this.simple) {
             DatabaseManager.removeTimestamps(... this.selectedFiles).then(() => this.show());
         } else {
@@ -1791,13 +1791,13 @@ class FilesView extends View {
     mergeSelected () {
         if (this.simple) {
             if (this.selectedFiles.length > 1) {
-                PopupController.open(LoaderPopup);
+                LoaderPopup.toggle(true);
                 DatabaseManager.merge(this.selectedFiles).then(() => this.show());
             }
         } else {
             const timestamps = _uniq(Object.values(this.selectedPlayers).map(player => player.timestamp));
             if (timestamps.length > 1) {
-                PopupController.open(LoaderPopup);
+                LoaderPopup.toggle(true);
                 DatabaseManager.merge(timestamps).then(() => this.show());
             }
         }
@@ -1805,7 +1805,7 @@ class FilesView extends View {
 
     // Hide selected
     hideSelected () {
-        PopupController.open(LoaderPopup);
+        LoaderPopup.toggle(true);
         if (this.simple) {
             DatabaseManager.hideTimestamps(... this.selectedFiles).then(() => this.show());
         } else {
@@ -1814,13 +1814,13 @@ class FilesView extends View {
     }
 
     hideMigrate () {
-        PopupController.open(LoaderPopup);
+        LoaderPopup.toggle(true);
         DatabaseManager.migrateHiddenFiles().then(() => this.show());
     }
 
     // Import file via har
     importJson (fileEvent) {
-        PopupController.open(LoaderPopup);
+        LoaderPopup.toggle(true);
 
         let pendingPromises = [];
         Array.from(fileEvent.currentTarget.files).forEach(file => pendingPromises.push(file.text().then(fileContent => DatabaseManager.import(fileContent, file.lastModified).catch((exception) => {
@@ -2345,7 +2345,7 @@ class FilesView extends View {
         this.lastSelectedTimestamp = null;
         this.lastSelectedPlayer = null;
 
-        PopupController.close(LoaderPopup);
+        LoaderPopup.toggle(false);
 
         this.$tags.toggle(this.simple);
         this.$migrateHidden.toggle(!this.simple && SiteOptions.hidden);
@@ -2685,86 +2685,6 @@ class SettingsFloatView extends SettingsView {
         SettingsManager.remove(this.settings.name);
         this.hide();
         UI.current.load();
-    }
-}
-
-class ChangeLogsView extends View {
-    constructor (parent) {
-        super(parent);
-
-
-        let entries = [];
-        let content = '';
-        if (Array.isArray(entries)) {
-            for (const entry of entries) {
-                content += `
-                    <li style="margin-top: 0.5em;">${entry}</li>
-                `
-            }
-        } else if (entries) {
-
-        } else {
-            content = '<p><b>Changes are yet to be announced</b></p>'
-        }
-
-        this.$parent.find('[data-op="list"]').html(Object.keys(CHANGELOG).map((version) => this.getChanges(version)).join(''));
-    }
-
-    getChanges (version) {
-        const entries = CHANGELOG[version];
-
-        if (Array.isArray(entries)) {
-            const content = entries.map(entry => `<li style="margin-bottom: 0.5em;">${entry}</li>`).join('');
-            return `
-                <div class="row css-row-ver">
-                    <div class="two wide column"></div>
-                    <div class="one wide column">
-                        <h3 class="ui header css-h3-ver">${ version }</h3>
-                    </div>
-                    <div class="thirteen wide column">
-                        <ul class="css-ul-ver">
-                            ${content}
-                        </ul>
-                    </div>
-                </div>
-            `;
-        } else if (entries) {
-            let content = ''
-            for (const [ category, changes ] of Object.entries(entries)) {
-                const entries = changes.map(entry => `<li style="margin-top: 0.5em;">${entry}</li>`).join('')
-                content += `
-                    <h3 class="ui header css-h3-ver" style="margin-left: 1.5em; margin-bottom: 0em; margin-top: ${content.length == 0 ? '0' : '1'}em !important;">${category}</h3>
-                    <ul class="css-ul-ver">
-                        ${entries}
-                    </ul>
-                `;
-            }
-            return `
-                <div class="row css-row-ver">
-                    <div class="two wide column"></div>
-                    <div class="one wide column">
-                        <h3 class="ui header css-h3-ver">${version}</h3>
-                    </div>
-                    <div class="thirteen wide column">
-                        ${content}
-                    </div>
-                </div>
-            `;
-        } else {
-            return `
-                <div class="row css-row-ver">
-                    <div class="two wide column"></div>
-                    <div class="one wide column">
-                        <h3 class="ui header css-h3-ver">${ version }</h3>
-                    </div>
-                    <div class="thirteen wide column">
-                        <ul class="css-ul-ver">
-                            Changes are yet to be announced
-                        </ul>
-                    </div>
-                </div>
-            `;
-        }
     }
 }
 

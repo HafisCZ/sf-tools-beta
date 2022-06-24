@@ -12,6 +12,7 @@
 
         <script src="vendor/js/jquery.3.4.1.min.js"></script>
         <script src="vendor/js/semantic.min.js"></script>
+        <script src="vendor/js/html2canvas.min.js"></script>
 
         <script src="js/enum.js"></script>
         <script src="js/util.js"></script>
@@ -234,7 +235,7 @@
                 </div>
                 <!-- Player list -->
                 <div class="column">
-                    <div class="ui grid">
+                    <div class="ui grid screenshot-target">
                         <div class="css-small-row row css-smaller-pad">
                             <div class="four wide column">
                                 <button class="ui fluid small button" type="submit" id="sim-add"><i class="small arrow right icon"></i> Add</button>
@@ -320,7 +321,7 @@
 
                             </div>
                             <div class="one wide column">
-
+                                <button id="save-screenshot" class="ui small basic icon button" style="position: absolute; right: .75em; top: -0.50em;" data-position="bottom center" data-tooltip="Save as image"><i class="download icon"></i></button>
                             </div>
                         </div>
                         <div class="row padding-none">
@@ -341,14 +342,6 @@
         </div>
 
         <script type="text/javascript">
-            function toggleAll (dis) {
-                if (dis) {
-                    PopupController.open(LoaderPopup);
-                } else {
-                    PopupController.close(LoaderPopup);
-                }
-            }
-
             let editor = new Editor($('#sim-editor'));
 
             const UILogger = new (class {
@@ -401,6 +394,29 @@
                 } else {
                     this.style.setProperty('background', '');
                 }
+            });
+
+            $('#save-screenshot').click(function () {
+                let $target = $('.screenshot-target');
+                let $hiddenRows = $('.screenshot-target .css-small-row');
+
+                $hiddenRows.hide();
+                $target.css('margin-right', '-2rem').css('padding-right', '1rem');
+
+                html2canvas($target.get(0), {
+                    logging: false,
+                    ignoreElements: element => element.tagName == 'I' || element.id == 'save-screenshot',
+                    onclone: doc => {
+                        $hiddenRows.show();
+                        $target.css('margin-right', '').css('padding-right', '');
+
+                        $(doc).find('.selected').removeClass('selected');
+                    }
+                }).then(canvas => {
+                    canvas.toBlob(blob => {
+                        window.download(`simulator_${Date.now()}.png`, blob);
+                    });
+                });
             });
 
             var mode = 0;
@@ -530,7 +546,7 @@
                     }
 
                     showPlayers();
-                    toggleAll(true);
+                    LoaderPopup.toggle(true);
 
                     let blocks = Math.max(1, Number($('#sim-threads').val()) || 4);
                     let blockSize = Math.ceil(players.length / blocks);
@@ -572,7 +588,7 @@
                                 UILogger.append(`THREAD FINISHED IN <b>${ message.data.time / 1000 }</b> SECONDS`);
 
                                 if (results.length == players.length) {
-                                    toggleAll();
+                                    LoaderPopup.toggle(false);
 
                                     players = results;
                                     setSort('avg', 0);
