@@ -9,6 +9,7 @@
 
         <link rel="stylesheet" href="vendor/css/semantic.min.css"/>
         <link rel="stylesheet" href="css/style.css"/>
+        <link rel="stylesheet" href="css/simulator.css"/>
 
         <script src="vendor/js/jquery.3.4.1.min.js"></script>
         <script src="vendor/js/semantic.min.js"></script>
@@ -30,176 +31,12 @@
         <script src="js/sim/players.js"></script>
 
         <link href="https://fonts.googleapis.com/css?family=Roboto:300&display=swap" rel="stylesheet">
-
-        <style>
-            .bordered .fields:last-of-type {
-                margin-bottom: 0;
-            }
-
-            .bordered {
-                padding: 0.5em;
-                margin-bottom: 0.5em;
-            }
-
-            .bordered-simple {
-                margin-bottom: 0.35em;
-                padding-top: 0.5em !important;
-                padding-bottom: 0.5em !important;
-                margin-right: 1em;
-                margin-left: 1em;
-            }
-
-            .player-index {
-                position: absolute;
-                font-size: 90%;
-                opacity: 50%;
-                left: -0em;
-                top: 1.5em;
-            }
-
-            .bnone {
-                border: 1px solid transparent;
-            }
-
-            .bone {
-                border: 1px solid orange;
-            }
-
-            .btwo {
-                border: 1px solid purple;
-            }
-
-            .bthree {
-                border: 1px solid blue;
-            }
-
-            .bfour {
-                border: 1px solid red;
-            }
-
-            .bfive {
-                border: 1px solid green;
-            }
-
-            .bsix {
-                border: 1px solid pink;
-            }
-
-            .spaced {
-                margin-top: 2em !important;
-            }
-
-            .sim-player-name-ihof {
-                position: relative;
-            }
-
-            .sim-player-name span {
-                display: none;
-            }
-
-            .sim-player-name-ihof b {
-                position: absolute;
-                left: 0;
-                bottom: 0;
-            }
-
-            .sim-player-name-ihof span {
-                position: absolute;
-                left: 0;
-                top: 0;
-            }
-
-            .selectable {
-                -moz-user-select: -moz-none;
-                -khtml-user-select: none;
-                -webkit-user-select: none;
-                -ms-user-select: none;
-                user-select: none;
-                padding-bottom: 0.25em !important;
-                padding-top: 0.25em !important;
-            }
-
-            .selectable div {
-                padding: 0 !important;
-            }
-
-            .selectable-header div {
-                padding-left: 0 !important;
-                padding-right: 0 !important;
-            }
-
-            .selected {
-                background-color: rgba(0, 0, 0, 0.1);
-                cursor: pointer;
-            }
-
-            .nselected {
-                cursor: pointer;
-            }
-
-            [data-sort-style] {
-                position: relative;
-                margin-top: -15px;
-                padding-top: 15px;
-                margin-bottom: -15px;
-                padding-bottom: 15px;
-                margin-right: -10px;
-                padding-right: 10px;
-                margin-left: -10px;
-                padding-left: 10px;
-            }
-
-            [data-sort-style="1"]::before {
-                content: "\f0de";
-                font-family: Icons;
-                position: absolute;
-                left: 1px;
-                top: -3px;
-                transform: scale(0.7);
-            }
-
-            [data-sort-style="2"]::before {
-                content: "\f0dd";
-                font-family: Icons;
-                position: absolute;
-                left: 1px;
-                bottom: 0px;
-                transform: scale(0.7);
-            }
-
-            .debug-container {
-                position: absolute;
-                top: 5em;
-                left: 1em;
-                font-size: 80%;
-            }
-
-            .class-picture {
-                 margin-left: -0.75em !important;
-                 margin-right: 0.5em !important;
-            }
-
-            .class-none {
-                margin-left: 1.75em;
-            }
-
-            .css-smaller-pad > .column {
-                padding-left: 0.5rem !important;
-                padding-right: 0.5rem !important;
-            }
-        </style>
     </head>
     <body class="margin-none-bottom">
         <div class="ui fixed borderless huge menu css-menu">
             <div class="header item"><a class="css-a-blank" href="index.html">SFTools</a></div>
             <div class="right menu">
                 <a class="item" href="index.html"><i class="small reply icon"></i><span class="css-small">Go back</span></a>
-            </div>
-        </div>
-
-        <div class="debug-container">
-            <div class="debug">
-
             </div>
         </div>
 
@@ -243,32 +80,18 @@
                             <div class="four wide column">
                                 <button class="ui fluid small button" type="submit" id="sim-save">Save</button>
                             </div>
+                            <div class="one wide column"></div>
                             <div class="two wide column">
-                                <button class="ui small basic icon fluid button" data-position="bottom center" data-tooltip="DANGEROUS: Enable fight data dump" id="sim-debug"><i class="file code outline icon"></i></button>
+                                <button class="ui small basic icon fluid button" style="margin-left: -1.5em; width: calc(100% + 1.5em);" data-position="bottom center" data-tooltip="Toggle Add/Replace insertion mode" id="sim-insert"><i class="paste icon"></i></button>
                             </div>
-                            <div class="two wide column">
-                                <button class="ui tiny basic icon fluid button" data-position="bottom center" data-tooltip="Toggle Add/Replace insertion mode" id="sim-insert"><i class="paste icon"></i></button>
-                            </div>
-                            <div class="four wide column">
-                                <div class="ui tiny basic icon fluid two buttons">
+                            <div class="five wide column">
+                                <div class="ui small basic icon fluid two buttons">
                                     <button class="ui button" data-position="bottom center" data-tooltip="Copy current" id="sim-copy"><i class="outline copy icon"></i> 1</button>
                                     <button class="ui button" data-position="bottom center" data-tooltip="Copy everyone" id="sim-copyall"><i class="copy icon"></i> All</button>
                                 </div>
                             </div>
                         </div>
                         <div class="css-small-row row css-smaller-pad">
-                            <div class="five wide column">
-                                <div class="ui small form">
-                                    <div class="two fields">
-                                        <div class="field" data-position="bottom center" data-tooltip="Simulator threads. Keep this number BELOW your processor core count!">
-                                            <input class="text-center fluid" type="text" id="sim-threads" value="4">
-                                        </div>
-                                        <div class="field" data-position="bottom center" data-tooltip="Amount of iterations per thread.">
-                                            <input class="text-center fluid" type="text" id="sim-iterations" value="2500">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
                             <div class="four wide column">
                                 <div class="ui small form">
                                     <div class="field">
@@ -281,6 +104,19 @@
                             </div>
                             <div class="two wide column">
                                 <button class="ui small basic icon fluid button" data-position="bottom center" data-tooltip="IHOF Mode: Gladiator is set to 15 and is not reduced!" id="sim-ihof">IHOF</button>
+                            </div>
+                            <div class="five wide column">
+                                <div class="ui small form">
+                                    <div class="two fields">
+                                        <div class="field" data-position="bottom center" data-tooltip="Simulator threads. Keep this number BELOW your processor core count!">
+                                            <input class="text-center fluid" type="text" id="sim-threads" value="4">
+                                        </div>
+                                        <div class="field" data-position="bottom center" data-tooltip="Amount of iterations per thread.">
+                                            <span style="position: absolute; top: 0.5em; left: -0.25em;">x</span>
+                                            <input class="text-center fluid" type="text" id="sim-iterations" value="2500">
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <div class="five wide column">
                                 <button class="ui fluid small button" type="submit" id="sim-run">Simulate</button>
@@ -343,21 +179,6 @@
 
         <script type="text/javascript">
             let editor = new Editor($('#sim-editor'));
-
-            const UILogger = new (class {
-                constructor ($root) {
-                    this.$root = $root;
-                }
-
-                clear () {
-                    this.$root.html('');
-                }
-
-                append (line) {
-                    this.$root.append(`${ line }</br>`);
-                }
-            })($('.debug'));
-
             var selected = -1;
             var yourself = -1;
 
@@ -376,15 +197,7 @@
                 showPlayers();
             });
 
-            var modeDump = false;
-            $('#sim-debug').click(function () {
-                modeDump = !modeDump;
-                if (modeDump) {
-                    this.style.setProperty('background', '#eb8034', 'important');
-                } else {
-                    this.style.setProperty('background', '');
-                }
-            });
+            var modeDump = window.location.href.includes('log');
 
             var modeInsert = false;
             $('#sim-insert').click(function () {
@@ -533,11 +346,37 @@
             $('#sim-threads').captiveInputField('player_sim/threads', 4, v => !isNaN(v) && v >= 1);
             $('#sim-iterations').captiveInputField('player_sim/iterations', 2500, v => !isNaN(v) && v >= 1);
 
+            function buildSimulatorLadder (array) {
+                return new Promise(async (resolve, reject) => {
+                    Toast.info('Preparing ladder', `<code><b>Players:</b> ${array.length}</code>`);
+
+                    let worker = await createSimulatorWorker('players');
+
+                    worker.addEventListener('message', function (message) {
+                        if (message.data.command == 'finished') {
+                            resolve(message.data.results);
+                        }
+                    }, false);
+
+                    worker.postMessage({
+                        mode: 'players_all',
+                        player: array,
+                        players: array,
+                        iterations: 100
+                    });
+                }).then((list) => {
+                    _sort_asc(list, p => p.score.avg);
+                    for (let p of list) {
+                        p.score = null;
+                    }
+
+                    return list;
+                });
+            }
+
             // Run simulation
             $('#sim-run').click(async function () {
                 if (players.length > 1 && (mode != 1 || (mode == 1 && players.find(p => p.index == yourself)))) {
-                    UILogger.clear();
-
                     for (var i = 0; i < players.length; i++) {
                         players[i].score = null;
                         if (modeIhof) {
@@ -557,22 +396,12 @@
                     var logs = [];
 
                     if (mode == 2) {
-                        UILogger.append(`GENERATING LADDER`);
-
-                        ladder = [ ... players ];
-                        new FightSimulator().simulateMultiple(ladder, ladder, 100);
-
-                        ladder.sort((a, b) => a.score.avg - b.score.avg);
-
-                        for (var i = 0; i < ladder.length; i++) {
-                            ladder[i].score = null;
-                        }
+                        ladder = await buildSimulatorLadder([ ...players ]);
                     }
 
-                    UILogger.append(`BLOCK SIZE: <b>${ blockSize }</b>`);
-                    UILogger.append(`ITERATIONS: <b><b>${ iterations }</b>`);
-                    UILogger.append(`<b><br/>STARTING ${ blocks } THREADS</b>`);
+                    Toast.info('Starting simulation', `<code><b>Block size:</b> ${blockSize}<br/><b>Iterations:</b> ${iterations}<br/><b>Thread cnt:</b> ${blocks}</code>`)
 
+                    let blocksFinished = 0;
                     for (var i = 0; i < players.length; i += blockSize) {
                         var block = players.slice(i, i + blockSize);
                         var worker = await createSimulatorWorker('players');
@@ -585,7 +414,7 @@
                                     logs.push(... message.data.logs);
                                 }
 
-                                UILogger.append(`THREAD FINISHED IN <b>${ message.data.time / 1000 }</b> SECONDS`);
+                                Toast.info(`Simulation thread ${blocksFinished += 1} / ${blocks} finished`, `<code><b>Time:</b> ${message.data.time / 1000} seconds</code>`)
 
                                 if (results.length == players.length) {
                                     LoaderPopup.toggle(false);
