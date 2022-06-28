@@ -675,7 +675,6 @@ class SFPlayer {
     getMaximumDamageReduction () {
         switch (this.Class) {
             case 1:
-            case 5:
             case 7:
                 return 50;
             case 3:
@@ -684,6 +683,7 @@ class SFPlayer {
             case 9:
                 return 25;
             case 2:
+            case 5:
                 return 10;
             case 8:
                 switch (this.Mask) {
@@ -1734,6 +1734,10 @@ class SFOwnPlayer extends SFPlayer {
         if (data.tower) {
             this.Dungeons.Extra.Normal[0] = data.tower[150];
             this.Dungeons.Extra.Shadow[0] = data.tower[298];
+
+            this.Underworld.GoblinUpgrades = data.tower[146];
+            this.Underworld.TrollUpgrades = data.tower[294];
+            this.Underworld.KeeperUpgrades = data.tower[442];
 
             dataType = new ComplexDataType(data.tower.slice(448));
             this.Underworld.Heart = dataType.long();

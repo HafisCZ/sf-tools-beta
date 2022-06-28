@@ -95,19 +95,19 @@ const Toast = new (class {
                     ${icon ? `<i data-op="icon" class="${icon} icon" style="color: orange; line-height: 1rem; margin-right: 0.5rem;"></i>` : ''}${title}
                 </div>
                 <div style="padding: 0.75rem; word-wrap: break-word; background-color: rgba(255, 255, 255, 0.85); border-bottom-left-radius: calc(0.375rem - 1px); border-bottom-right-radius: calc(0.375rem - 1px); border: 1px solid rgba(0, 0, 0, 0.175);">
-                    ${message}
+                    <code>${message}</code>
                 </div>
             </div>
         `).appendTo(this.$parent);
 
         $toast.transition('fade');
-        setTimeout(() => this._destroy($toast), 3000);
+        setTimeout(() => this._destroy($toast), 6000);
 
         // Add toast to the queue
         this.toasts.unshift($toast);
 
-        // Check and remove last toast if there is more than 5
-        if (this.toasts.length > 5) {
+        // Check and remove last toast if there is more than fit on the screen
+        if (this.$parent.height() > window.innerHeight - 100) {
             this._destroy(this.toasts.pop());
         }
     }
@@ -115,7 +115,7 @@ const Toast = new (class {
     _destroy ($toast) {
         $toast.transition('fade', 500, () => {
             let toastId = $toast.data('toast');
-            if (this.toasts[this.toasts.length - 1].data('toast') == toastId) {
+            if (this.toasts.length > 0 && this.toasts[this.toasts.length - 1].data('toast') == toastId) {
                 this.toasts.pop();
             }
 

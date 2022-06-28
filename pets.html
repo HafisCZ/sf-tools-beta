@@ -10,6 +10,7 @@
         <link rel="stylesheet" href="vendor/css/semantic.min.css"/>
         <link rel="stylesheet" href="css/style.css"/>
         <link rel="stylesheet" href="css/pets.css"/>
+        <link rel="stylesheet" href="css/editor.css"/>
 
         <link href="https://fonts.googleapis.com/css?family=Roboto:300&display=swap" rel="stylesheet">
 
@@ -33,14 +34,11 @@
         <script src="js/changelog.js"></script>
         <script src="js/sim/pets.js"></script>
         <script src="js/views.js"></script>
-        <script src="js/sim/editor.js"></script>
+        <script src="js/editor.js"></script>
     </head>
     <body class="margin-none-bottom">
         <div class="ui fixed borderless huge menu css-menu">
             <div class="header item"><a class="css-a-blank" href="index.html">SFTools</a></div>
-            <div class="right menu">
-                <a class="item" href="index.html"><i class="small reply icon"></i><span class="css-small">Go back</span></a>
-            </div>
         </div>
 
         <div class="ui main container">
@@ -692,7 +690,7 @@
                         let hasDungeonsLeft = player.Pets.Dungeons.some(pet => pet < 20);
 
                         $statsList.append($(`
-                            <div class="ui fluid button basic vertical animated gray" style="margin-bottom: 0.5em;">
+                            <div class="ui fluid button basic vertical animated gray" style="margin-top: 0.5em;">
                                 <div class="visible content">
                                     <span style="color: black;">${ player.Name } @ ${ player.Prefix }<span>
                                 </div>

@@ -176,6 +176,7 @@ class IndexedDBWrapper {
             this.database = db;
 
             if (this.version != this.oldVersion && Array.isArray(this.dataUpdaters)) {
+                Toast.info('A database update is in progress', 'Please do not exit the page until loading stops. This may take a while depending on the size of your database.');
                 for (const updater of this.dataUpdaters) {
                     if (updater.shouldApply(this.oldVersion)) {
                         await updater.apply(this);
@@ -522,10 +523,11 @@ const DatabaseManager = new (class {
             Own: data.own,
             Name: data.name,
             Prefix: data.prefix.replace(/\_/g, ' '),
-            Class: data.class
+            Class: data.class,
+            Group: data.group
         }, {
             get: function (target, prop) {
-                if (prop == 'Data' || prop == 'Identifier' || prop == 'Timestamp' || prop == 'Own' || prop == 'Name' || prop == 'Prefix' || prop == 'Class') {
+                if (prop == 'Data' || prop == 'Identifier' || prop == 'Timestamp' || prop == 'Own' || prop == 'Name' || prop == 'Prefix' || prop == 'Class' || prop == 'Group') {
                     return target[prop];
                 } else if (prop == 'IsProxy') {
                     return true;
@@ -590,7 +592,13 @@ const DatabaseManager = new (class {
             }, []);
 
             _sort_des(player.List, le => le[0]);
-            player.Latest = this._loadPlayer(player[player.LatestTimestamp]);
+
+            if (this.Profile.block_preload) {
+                player.Latest = player[player.LatestTimestamp];
+            } else {
+                player.Latest = this._loadPlayer(player[player.LatestTimestamp]);
+            }
+
             player.Own = player.List.find(x => x[1].Own) != undefined;
         }
 

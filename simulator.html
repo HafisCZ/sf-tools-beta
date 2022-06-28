@@ -10,6 +10,7 @@
         <link rel="stylesheet" href="vendor/css/semantic.min.css"/>
         <link rel="stylesheet" href="css/style.css"/>
         <link rel="stylesheet" href="css/simulator.css"/>
+        <link rel="stylesheet" href="css/editor.css"/>
 
         <script src="vendor/js/jquery.3.4.1.min.js"></script>
         <script src="vendor/js/semantic.min.js"></script>
@@ -25,19 +26,13 @@
         <script src="js/plugins.js"></script>
         <script src="js/changelog.js"></script>
         <script src="js/views.js"></script>
-        <script src="js/sim/editor.js"></script>
-
-        <script src="js/sim/base.js"></script>
-        <script src="js/sim/players.js"></script>
+        <script src="js/editor.js"></script>
 
         <link href="https://fonts.googleapis.com/css?family=Roboto:300&display=swap" rel="stylesheet">
     </head>
     <body class="margin-none-bottom">
         <div class="ui fixed borderless huge menu css-menu">
             <div class="header item"><a class="css-a-blank" href="index.html">SFTools</a></div>
-            <div class="right menu">
-                <a class="item" href="index.html"><i class="small reply icon"></i><span class="css-small">Go back</span></a>
-            </div>
         </div>
 
         <div class="paste-target" onpaste="console.log">
@@ -73,26 +68,14 @@
                 <!-- Player list -->
                 <div class="column">
                     <div class="ui grid screenshot-target">
-                        <div class="css-small-row row css-smaller-pad">
+                        <div class="row">
                             <div class="four wide column">
-                                <button class="ui fluid small button" type="submit" id="sim-add"><i class="small arrow right icon"></i> Add</button>
+                                <button class="ui fluid small button" type="submit" id="add-player"><i class="small arrow right icon"></i> Add</button>
                             </div>
                             <div class="four wide column">
-                                <button class="ui fluid small button" type="submit" id="sim-save">Save</button>
+                                <button class="ui fluid small button" type="submit" id="save-player">Save</button>
                             </div>
-                            <div class="one wide column"></div>
-                            <div class="two wide column">
-                                <button class="ui small basic icon fluid button" style="margin-left: -1.5em; width: calc(100% + 1.5em);" data-position="bottom center" data-tooltip="Toggle Add/Replace insertion mode" id="sim-insert"><i class="paste icon"></i></button>
-                            </div>
-                            <div class="five wide column">
-                                <div class="ui small basic icon fluid two buttons">
-                                    <button class="ui button" data-position="bottom center" data-tooltip="Copy current" id="sim-copy"><i class="outline copy icon"></i> 1</button>
-                                    <button class="ui button" data-position="bottom center" data-tooltip="Copy everyone" id="sim-copyall"><i class="copy icon"></i> All</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="css-small-row row css-smaller-pad">
-                            <div class="four wide column">
+                            <div class="six wide column">
                                 <div class="ui small form">
                                     <div class="field">
                                         <div class="ui fluid selection compact dropdown" id="sim-mode">
@@ -103,7 +86,16 @@
                                 </div>
                             </div>
                             <div class="two wide column">
-                                <button class="ui small basic icon fluid button" data-position="bottom center" data-tooltip="IHOF Mode: Gladiator is set to 15 and is not reduced!" id="sim-ihof">IHOF</button>
+                                <button class="ui small basic icon fluid button" data-position="bottom center" data-tooltip="IHOF Mode: Gladiator is set to 15 and is not reduced!" id="ihof-mode"><i class="trophy icon"></i></button>
+                            </div>
+                        </div>
+                        <div class="css-small-row row">
+                            <div class="six wide column">
+                                <div class="ui small basic icon fluid three buttons">
+                                    <button class="ui button" data-position="bottom center" data-tooltip="Toggle Add/Replace insertion mode" id="paste-mode"><i class="paste icon"></i></button>
+                                    <button class="ui button" data-position="bottom center" data-tooltip="Copy current" id="copy-current"><i class="outline copy icon"></i> 1</button>
+                                    <button class="ui button" data-position="bottom center" data-tooltip="Copy everyone" id="copy-all"><i class="copy icon"></i> All</button>
+                                </div>
                             </div>
                             <div class="five wide column">
                                 <div class="ui small form">
@@ -119,7 +111,7 @@
                                 </div>
                             </div>
                             <div class="five wide column">
-                                <button class="ui fluid small button" type="submit" id="sim-run">Simulate</button>
+                                <button class="ui fluid small button" type="submit" id="simulate">Simulate</button>
                             </div>
                         </div>
                         <div class="row clickable selectable-header">
@@ -185,33 +177,22 @@
             var players = [];
             var iterator = 0;
 
-            var modeIhof = false;
-            $('#sim-ihof').click(function () {
-                modeIhof = !modeIhof;
-                if (modeIhof) {
-                    this.style.setProperty('background', '#21ba45', 'important');
-                } else {
-                    this.style.setProperty('background', '');
-                }
+            let ihofMode = false;
+            $('#ihof-mode').toggleButton(active => {
+                ihofMode = active;
+
                 $('.sim-player-name, .sim-player-name-ihof').toggleClass('sim-player-name').toggleClass('sim-player-name-ihof');
                 showPlayers();
             });
 
             var modeDump = window.location.href.includes('log');
 
-            var modeInsert = false;
-            $('#sim-insert').click(function () {
-                modeInsert = !modeInsert;
-                if (modeInsert) {
-                    this.style.setProperty('background', '#21ba45', 'important');
-                } else {
-                    this.style.setProperty('background', '');
-                }
-            });
+            let pasteMode = false;
+            $('#paste-mode').toggleButton(active => pasteMode = active);
 
             $('#save-screenshot').click(function () {
                 let $target = $('.screenshot-target');
-                let $hiddenRows = $('.screenshot-target .css-small-row');
+                let $hiddenRows = $('.screenshot-target .row').slice(0, 2);
 
                 $hiddenRows.hide();
                 $target.css('margin-right', '-2rem').css('padding-right', '1rem');
@@ -289,7 +270,7 @@
 
             function insertExternalData (data) {
                 if (Array.isArray(data)) {
-                    if (!modeInsert) {
+                    if (pasteMode == false) {
                         players = [];
                     }
 
@@ -348,7 +329,7 @@
 
             function buildSimulatorLadder (array) {
                 return new Promise(async (resolve, reject) => {
-                    Toast.info('Preparing ladder', `<code><b>Players:</b> ${array.length}</code>`);
+                    Toast.info('Preparing ladder', `<b>Players:</b> ${array.length}`);
 
                     let worker = await createSimulatorWorker('players');
 
@@ -375,11 +356,11 @@
             }
 
             // Run simulation
-            $('#sim-run').click(async function () {
+            $('#simulate').click(async function () {
                 if (players.length > 1 && (mode != 1 || (mode == 1 && players.find(p => p.index == yourself)))) {
                     for (var i = 0; i < players.length; i++) {
                         players[i].score = null;
-                        if (modeIhof) {
+                        if (ihofMode) {
                             players[i].player.ForceGladiator = 15;
                         }
                     }
@@ -399,7 +380,7 @@
                         ladder = await buildSimulatorLadder([ ...players ]);
                     }
 
-                    Toast.info('Starting simulation', `<code><b>Block size:</b> ${blockSize}<br/><b>Iterations:</b> ${iterations}<br/><b>Thread cnt:</b> ${blocks}</code>`)
+                    Toast.info('Starting simulation', `<b>Block size:</b> ${blockSize}<br/><b>Iterations:</b> ${iterations}<br/><b>Thread cnt:</b> ${blocks}`)
 
                     let blocksFinished = 0;
                     for (var i = 0; i < players.length; i += blockSize) {
@@ -414,7 +395,7 @@
                                     logs.push(... message.data.logs);
                                 }
 
-                                Toast.info(`Simulation thread ${blocksFinished += 1} / ${blocks} finished`, `<code><b>Time:</b> ${message.data.time / 1000} seconds</code>`)
+                                Toast.info(`Simulation thread ${blocksFinished += 1} / ${blocks} finished`, `<b>Time:</b> ${message.data.time / 1000} seconds`)
 
                                 if (results.length == players.length) {
                                     LoaderPopup.toggle(false);
@@ -460,7 +441,7 @@
                 }
             });
 
-            $('#sim-save').click(function () {
+            $('#save-player').click(function () {
                 if (editor.valid()) {
                     if (selected != -1) {
                         var index = players.findIndex(p => p.index == selected);
@@ -471,16 +452,16 @@
 
                         showPlayers();
                     } else {
-                        $('#sim-add').trigger('click');
+                        $('#add-player').trigger('click');
                     }
                 }
             });
 
-            $('#sim-copy').click(function () {
+            $('#copy-current').click(function () {
                 copyText(JSON.stringify(editor.read()));
             });
 
-            $('#sim-copyall').click(function () {
+            $('#copy-all').click(function () {
                 copyText(JSON.stringify(players.map(p => {
                     let m = toSimulatorModel(p.player);
                     if (p.player.Class == 1 && typeof p.player.BlockChance != 'undefined') {
@@ -491,7 +472,7 @@
                 })));
             });
 
-            $('#sim-add').click(function () {
+            $('#add-player').click(function () {
                 if (editor.valid()) {
                     var player = editor.read();
                     if (player.Name == '') {
@@ -619,7 +600,7 @@
                                 <b>${ player.Level }</b>
                             </div>
                             <div class="one wide column"></div>
-                            <div class="four wide column sim-player-name${ modeIhof && player.Prefix ? '-ihof' : '' }">
+                            <div class="four wide column sim-player-name${ ihofMode && player.Prefix ? '-ihof' : '' }">
                                 <b>${ player.Name }</b>
                                 <span>${ player.Prefix }</span>
                             </div>

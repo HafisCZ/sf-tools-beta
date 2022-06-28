@@ -1,0 +1,52 @@
+.bordered .fields:last-of-type {
+    margin-bottom: 0;
+}
+
+.bordered {
+    padding: 0.5em;
+    margin-bottom: 0.5em;
+}
+
+.bnone {
+    border: 1px solid transparent;
+}
+
+.bone {
+    border: 1px solid orange;
+}
+
+.btwo {
+    border: 1px solid purple;
+}
+
+.bthree {
+    border: 1px solid blue;
+}
+
+.bfour {
+    border: 1px solid red;
+}
+
+.bfive {
+    border: 1px solid green;
+}
+
+.bsix {
+    border: 1px solid pink;
+}
+
+.class-picture {
+     margin-left: -0.75em !important;
+     margin-right: 0.5em !important;
+}
+
+div.morph .menu {
+    width: 12rem;
+}
+
+div.morph div.disabled.item {
+    opacity: 1 !important;
+    font-weight: bold !important;
+    text-align: center !important;
+    border-bottom: 1px solid rgba(34, 36, 38, 0.15) !important;
+}
